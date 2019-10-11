@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
 
 		/* Print >>> then get the input string */
     FILE* read_file = fopen(argv[1], "r");
+    FILE* write_file = fopen("./output.txt", "w");
 
     getline(&buf, &bsize, read_file);
 
@@ -44,11 +45,15 @@ int main(int argc, char **argv) {
     while(token != NULL)
   	{
   		printf("\nT%d: %s", tnum, token);
+      fputs(token, write_file);
+      fputs("\n", write_file);
   		token = strtok(NULL, s);
   		tnum += 1;
   	}
 
 	/*Free the allocated memory*/
+  fclose(write_file);
+  fclose(read_file);
   free(buf);
 
 	return 1;
