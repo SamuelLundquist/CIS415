@@ -30,27 +30,25 @@ int main(int argc, char **argv) {
 	/* Allocate memory for the input buffer. */
   buf = (char*)malloc(bsize * sizeof(char));
 
-	/*main run loop*/
+	/* Print >>> then get the input string */
+  FILE* read_file = fopen(argv[1], "r");
+  FILE* write_file = fopen("./output.txt", "w");
 
-		/* Print >>> then get the input string */
-    FILE* read_file = fopen(argv[1], "r");
-    FILE* write_file = fopen("./output.txt", "w");
+  getline(&buf, &bsize, read_file);
 
-    getline(&buf, &bsize, read_file);
+	/* Tokenize the input string */
+  token = strtok(buf, s);
 
-		/* Tokenize the input string */
-    token = strtok(buf, s);
-
-		/* Display each token */
-    while(token != NULL)
-  	{
-  		printf("\nT%d: %s", tnum, token);
-		char str[80];
-		sprintf(str, "T%d: %s\n", tnum, token);
-      		fputs(str, write_file);
-  		token = strtok(NULL, s);
-  		tnum += 1;
-  	}
+	/* Display each token */
+  while(token != NULL)
+  {
+    printf("\nT%d: %s", tnum, token);
+    char str[80];
+    sprintf(str, "T%d: %s\n", tnum, token);
+    fputs(str, write_file);
+    token = strtok(NULL, s);
+    tnum += 1;
+  }
 
 	/*Free the allocated memory*/
   fclose(write_file);

@@ -24,6 +24,7 @@ int main() {
 	size_t bsize = 32;
 	const char s[2] = " ";
 	char *token;
+  char *next_token;
 	int tnum = 0;
   int running = 1;
 
@@ -39,8 +40,9 @@ int main() {
 
 		/* Tokenize the input string */
     token = strtok(buf, s);
+    next_token = strtok(NULL, s);
 
-    if(strncmp(token, "exit", 4) == 0)
+    if((strcmp(token, "exit") == 0) && next_token == NULL)
     {
       running = 0;
       break;
@@ -49,14 +51,14 @@ int main() {
     while(token != NULL)
   	{
   		printf("\nT%d: %s", tnum, token);
-  		token = strtok(NULL, s);
+  		token = next_token;
+      next_token = strtok(NULL, s);
   		tnum += 1;
   	}
 
     tnum = 0;
-		/* If the user entered <exit> then exit the loop */
-
   }
+
 	/*Free the allocated memory*/
   free(buf);
 
