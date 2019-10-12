@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
 	/* Display each token */
   while(token != NULL)
   {
-    printf("\nT%d: %s", tnum, token);
     char str[80];
     sprintf(str, "T%d: %s\n", tnum, token);
     fputs(str, write_file);
