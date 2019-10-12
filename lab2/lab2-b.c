@@ -45,8 +45,9 @@ int main(int argc, char **argv) {
     while(token != NULL)
   	{
   		printf("\nT%d: %s", tnum, token);
-      fputs(token, write_file);
-      fputs("\n", write_file);
+		char str[80];
+		sprintf(str, "T%d: %s\n", tnum, token);
+      		fputs(str, write_file);
   		token = strtok(NULL, s);
   		tnum += 1;
   	}
