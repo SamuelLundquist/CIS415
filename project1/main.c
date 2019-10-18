@@ -13,42 +13,101 @@
 #include <string.h>
 #include "command.h"
 
-void commandMode()
+int commandCheck(char* cmd)
+{
+	char commands[11][6] = { "ls", "pwd", "mkdir", "cd", "cp", "mv", "rm", "cat", "help", "exit" };
+
+	for(int i = 0; i < 10; i++)
+	{
+		if(strcmp(cmd, commands[i]) == 0)
+		{
+			return i+1;
+		}
+	}
+	return 0;
+}
+
+int commandHandler(char* command)
 {
 	/*
+	--- Command Handler Function ---
+	Handles any function given to the
+	shell from either commandMode or
+	fileMode.
 
-	Command Mode
+	Input: A char pointer
 
+	Output: Int
+	0 = exit
+	1 = success
+	2 = error
 	*/
-
-	/* Function Variables */
-	char* buf;
-	size_t bsize = 32;
 	const char s[2] = " ";
 	char* token;
-	int running = 1;
+	char* saveptr2;
 
-	/* Malloc Memory for Buffer */
-	buf = (char*)malloc(bsize * sizeof(char));
+	token = strtok_r(command, s, &saveptr2);
 
-	/* Main run loop */
-	while(running)
+	switch(commandCheck(token))
 	{
-		/* Print >>> then get the input string */
-		printf(">>> ");
-		getline(&buf, &bsize, stdin);
+		case 1: //ls
+			token = strtok_r(NULL, s, &saveptr2);
+			if (token != NULL)
+			{
+				if(commandCheck(token))
+				{
+					printf("Error! Incorrect syntax. No control code found.\n");
+					return 2;
+				}
+				printf("Error! Unsupported parameters for command: ls\n");
+				return 2;
+			}
+			return 1;
 
-		/* Tokenize Input String */
-		token = strtok(buf, s);
+		case 2: //pwd
+			token = strtok_r(NULL, s, &saveptr2);
+			if (token != NULL)
+			{
+				if(commandCheck(token))
+				{
+					printf("Error! Incorrect syntax. No control code found.\n");
+					return 2;
+				}
+				printf("Error! Unsupported parameters for command: pwd\n");
+				return 2;
+			}
+			return 1;
 
-		/* Handle Exit Case */
-		if(strcmp(token, "exit\n") == 0)
-		{
-			running = 0;
-			break;
-		}
-		else if(strcmp(token, "help\n") == 0)
-		{
+		case 3: //mkdir
+			return 1;
+
+		case 4: //cd
+			return 1;
+
+		case 5: //cp
+			return 1;
+
+		case 6: //mv
+			return 1;
+
+		case 7: //rm
+			return 1;
+
+		case 8: //cat
+			return 1;
+
+		case 9: //Help
+			token = strtok_r(NULL, s, &saveptr2);
+			if (token != NULL)
+			{
+				if(commandCheck(token))
+				{
+					printf("Error! Incorrect syntax. No control code found.\n");
+					return 2;
+				}
+				printf("Error! Unsupported parameters for command: help\n");
+				return 2;
+			}
 			printf("\n --- PSEUDO SHELL HELP --- \n\n"
 				" ls | Show names and files in current directory.\n"
 				" pwd | Shows the current directory.\n"
@@ -62,42 +121,81 @@ void commandMode()
 				" exit | Closes the pseudo shell.\n\n"
 				" -------------------------\n\n"
 			);
-		}
-		else if(strcmp(token, "") == 0)
-		{
+			return 1;
 
-		}
-		else if(strcmp(token, "") == 0)
-		{
+		case 10: //Exit
+			token = strtok_r(NULL, s, &saveptr2);
+			if (token != NULL)
+			{
+				if(commandCheck(token))
+				{
+					printf("Error! Incorrect syntax. No control code found.\n");
+					return 2;
+				}
+				printf("Error! Unsupported parameters for command: exit\n");
+				return 2;
+			}
+			return 0;
 
-		}
-		else if(strcmp(token, "") == 0)
-		{
-
-		}
-		else if(strcmp(token, "") == 0)
-		{
-
-		}
-		else if(strcmp(token, "") == 0)
-		{
-
-		}
-		else if(strcmp(token, "") == 0)
-		{
-
-		}
-		else if(strcmp(token, "") == 0)
-		{
-
-		}
-		else
-		{
+		case 0: //Command unknown
 			printf("Error! Unrecognized command: %s\n", token);
+			return 2;
+	}
+	return 1;
+}
+
+void commandMode()
+{
+	/*
+	--- Command Mode ---
+	The mode used when the user
+	inputs the -command flag when
+	the pseudo shell is run from
+	the command line.
+
+	Uses getline(3) to take user input.
+	This input is then separated by ";" and "\n"
+	into tokens. Each token is then processed
+	by commandHandler until finished, or
+	until an error occurs.
+
+	Will not finish execution until the "exit"
+	command has been entered by the user.
+	*/
+
+	/* Function Variables */
+	char* buf;
+	size_t bsize = 32;
+	const char sc[4] = ";\n";
+	char* command_token;
+	char* saveptr;
+	int running = 1;
+
+	/* Malloc Memory for Buffer */
+	buf = (char*)malloc(bsize * sizeof(char));
+
+	/* Main run loop */
+	while(running)
+	{
+		/* Print >>> then get the input string */
+		printf(">>> ");
+		getline(&buf, &bsize, stdin);
+
+		/* Tokenize Input String */
+		command_token = strtok_r(buf, sc, &saveptr);
+
+		while(command_token != NULL)
+		{
+			running = commandHandler(command_token);
+			if(!running || running == 2)
+			{
+				break;
+			}
+			command_token = strtok_r(NULL, sc, &saveptr);
 		}
 	}
+	printf("Exited successfully.\n");
 	free(buf);
-	printf("Exited Successfully\n");
 	return;
 }
 
