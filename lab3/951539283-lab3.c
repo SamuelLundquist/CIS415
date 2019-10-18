@@ -72,6 +72,7 @@ void lfcat()
 			fputs("\n--------------------------------------------------------------------------------\n", write_file);
 			fclose(read_file);
 			file_name = NULL;
+			free(buf);
 			buf = NULL;
 		}
 	}
