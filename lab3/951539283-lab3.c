@@ -21,7 +21,7 @@
 void lfcat()
 {
 	/* Define your variables here */
-	char* buf = NULL;
+	char* buf;
 	size_t bsize = 0;
 	char cdir[256];
 	DIR* dir;
@@ -45,8 +45,6 @@ void lfcat()
 		printf("Cannot open directory %s\n", cdir);
 		exit(1);
 	}
-
-	cdir = NULL;
 
 	/* use a while loop to read the dir */
 	while((dp = readdir(dir)) != NULL){
@@ -73,7 +71,6 @@ void lfcat()
 			fputs("\n--------------------------------------------------------------------------------\n", write_file);
 			fclose(read_file);
 			file_name = NULL;
-			str = NULL;
 			buf = NULL;
 		}
 	}
@@ -84,8 +81,6 @@ void lfcat()
 /*---------------------------------------------------------------------------*/
 /*-----------------------------Program Main----------------------------------*/
 int main() {
-	setbuf(stdout, NULL);
-
 	/*function vars */
 	char *cBuffer;
 	size_t bufferSize;
