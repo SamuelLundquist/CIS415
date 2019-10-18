@@ -46,6 +46,8 @@ void lfcat()
 		exit(1);
 	}
 
+	cdir = NULL;
+
 	/* use a while loop to read the dir */
 	while((dp = readdir(dir)) != NULL){
 
@@ -70,6 +72,8 @@ void lfcat()
 			}
 			fputs("\n--------------------------------------------------------------------------------\n", write_file);
 			fclose(read_file);
+			file_name = NULL;
+			str = NULL;
 			buf = NULL;
 		}
 	}
