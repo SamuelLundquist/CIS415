@@ -6,7 +6,8 @@
 * Date: 10-17-2019
 *
 * Notes:
-*
+* Using a.out as the "lab3.exe" on line 54.
+* If you compile as something else, it would need to be specified there.
 */
 
 /*-------------------------Preprocessor Directives---------------------------*/
