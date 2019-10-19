@@ -15,7 +15,7 @@
 
 int commandCheck(char* cmd)
 {
-	char commands[11][6] = { "ls", "pwd", "mkdir", "cd", "cp", "mv", "rm", "cat", "help", "exit" };
+	char commands[11][6] = { "help", "exit", "ls", "pwd", "mkdir", "cd", "cat", "rm", "cp", "mv" };
 
 	for(int i = 0; i < 10; i++)
 	{
@@ -43,75 +43,87 @@ int commandHandler(char* command)
 	2 = error
 	*/
 	const char s[2] = " ";
-	char* token;
+	char* token0;
+	char* token1;
+	char* token2;
+	char* token3;
+	int cmd;
 	char* saveptr2;
 
-	token = strtok_r(command, s, &saveptr2);
-
-	switch(commandCheck(token))
+	token0 = strtok_r(command, s, &saveptr2);
+	cmd = commandCheck(token0);
+	if(!cmd)
 	{
-		case 1: //ls
-			/* Error Checking */
-			token = strtok_r(NULL, s, &saveptr2);
-			if (token != NULL)
+		printf("Error! Unrecognized command: %s\n", token0);
+		return 2;
+	}
+
+	/* This check works and I'm mad at myself for making it like this */
+	token1 = strtok_r(NULL, s, &saveptr2);
+	if(token1)
+	{
+		if(commandCheck(token1))
+		{
+			printf("Error! Incorrect syntax. No control code found.\n");
+			return 2;
+		}
+		else if(cmd < 5)
+		{
+			printf("Error! Unsupported parameters for command: %s\n", token0);
+			return 2;
+		}
+		else
+		{
+			token2 = strtok_r(NULL, s, &saveptr2);
+			if(token2)
 			{
-				if(commandCheck(token))
+				if(commandCheck(token2))
 				{
 					printf("Error! Incorrect syntax. No control code found.\n");
 					return 2;
 				}
-				printf("Error! Unsupported parameters for command: ls\n");
-				return 2;
-			}
-			listDir();
-			return 1;
-
-		case 2: //pwd
-			/* Error Checking */
-			token = strtok_r(NULL, s, &saveptr2);
-			if (token != NULL)
-			{
-				if(commandCheck(token))
+				else if(cmd < 9)
 				{
-					printf("Error! Incorrect syntax. No control code found.\n");
+					printf("Error! Unsupported parameters for command: %s\n", token0);
 					return 2;
 				}
-				printf("Error! Unsupported parameters for command: pwd\n");
-				return 2;
-			}
-			showCurrentDir();
-			return 1;
-
-		case 3: //mkdir
-			return 1;
-
-		case 4: //cd
-			return 1;
-
-		case 5: //cp
-			return 1;
-
-		case 6: //mv
-			return 1;
-
-		case 7: //rm
-			return 1;
-
-		case 8: //cat
-			return 1;
-
-		case 9: //Help
-			token = strtok_r(NULL, s, &saveptr2);
-			if (token != NULL)
-			{
-				if(commandCheck(token))
+				else
 				{
-					printf("Error! Incorrect syntax. No control code found.\n");
+					token3 = strtok_r(NULL, s, &saveptr2);
+					if(token3)
+					{
+						if(commandCheck(token3))
+						{
+							printf("Error! Incorrect syntax. No control code found.\n");
+							return 2;
+						}
+						printf("Error! Unsupported parameters for command: %s\n", token0);
+						return 2;
+					}
+				}
+			}
+			else
+			{
+				if(cmd > 8)
+				{
+					printf("Error! Unsupported parameters for command: %s\n", token0);
 					return 2;
 				}
-				printf("Error! Unsupported parameters for command: help\n");
-				return 2;
 			}
+		}
+	}
+	else
+	{
+		if(cmd > 4)
+		{
+			printf("Error! Unsupported parameters for command: %s\n", token0);
+			return 2;
+		}
+	}
+
+	switch(cmd)
+	{
+		case 1: //help
 			printf("\n --- PSEUDO SHELL HELP --- \n\n"
 				" ls | Show names and files in current directory.\n"
 				" pwd | Shows the current directory.\n"
@@ -127,23 +139,41 @@ int commandHandler(char* command)
 			);
 			return 1;
 
-		case 10: //Exit
-			token = strtok_r(NULL, s, &saveptr2);
-			if (token != NULL)
-			{
-				if(commandCheck(token))
-				{
-					printf("Error! Incorrect syntax. No control code found.\n");
-					return 2;
-				}
-				printf("Error! Unsupported parameters for command: exit\n");
-				return 2;
-			}
+		case 2: //exit
 			return 0;
 
-		case 0: //Command unknown
-			printf("Error! Unrecognized command: %s\n", token);
-			return 2;
+		case 3: //ls
+			listDir();
+			return 1;
+
+		case 4: //pwd
+			showCurrentDir();
+			return 1;
+
+		case 5: //mkdir
+			makeDir(token1);
+			return 1;
+
+		case 6: //cd
+			changeDir(token1);
+			return 1;
+
+		case 7: //cat
+			displayFile(token1);
+			return 1;
+
+		case 8: //rm
+			deleteFile(token1);
+			return 1;
+
+		case 9: //cp
+			copyFile(token1, token2);
+			return 1;
+
+		case 10: //mv
+			moveFile(token1, token2);
+			return 1;
+
 	}
 	return 1;
 }
