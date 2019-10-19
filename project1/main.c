@@ -243,10 +243,63 @@ void commandMode()
 void fileMode(char* filename)
 {
 	/*
+	--- File Mode ---
+	The mode used when the user
+	inputs the -f flag and <filename> when
+	the pseudo shell is run from
+	the command line.
 
-	File Mode
+	Uses fgets() to take input from file.
+	This input is then separated by ";"
+	into tokens. Each token is then processed
+	by commandHandler until finished, or
+	until an error occurs.
 
+	Will not finish execution until all
+	lines of file have been read.
 	*/
+
+	/* Function Variables */
+	char* buf;
+	size_t bsize = 80;
+	const char sc[6] = ";\n\r";
+	char* command_token;
+	char* saveptr;
+	int running = 1;
+
+	/* Malloc Memory for Buffer */
+	buf = (char*)malloc(bsize * sizeof(char));
+	if(buf == NULL)
+	{
+		printf("Memory for buffer not allocated.\n");
+		exit(1);
+	}
+
+	FILE* read_file = fopen(filename, "r");
+	char outputFile[] = "output.txt";
+	FILE* write_file = freopen(outputFile, "w", stdout);
+
+	while(fgets(buf, bsize, read_file) && running)
+	{
+		/* Tokenize Input String */
+		command_token = strtok_r(buf, sc, &saveptr);
+
+		/* Runs until all commands have gone through commandHandler() */
+		while(command_token != NULL)
+		{
+			/* commandHandler() returns 2 on error and 0 on exit*/
+			running = commandHandler(command_token);
+			if(!running || running == 2)
+			{
+				break;
+			}
+			command_token = strtok_r(NULL, sc, &saveptr);
+		}
+	}
+	fclose(read_file);
+	fclose(write_file);
+	free(buf);
+	printf("Exited successfully.\n");
 	return;
 }
 
