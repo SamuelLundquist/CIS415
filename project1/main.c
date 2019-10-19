@@ -79,6 +79,7 @@ int commandHandler(char* command)
 				printf("Error! Unsupported parameters for command: pwd\n");
 				return 2;
 			}
+			showCurrentDir();
 			return 1;
 
 		case 3: //mkdir

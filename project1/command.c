@@ -19,8 +19,8 @@ void listDir() /*for the ls command*/
 {
 	/* Variable assignment */
 	char cdir[256];
-	DIR* dir;
-	struct dirent* dp;
+	int i,n;
+	struct dirent** dp;
 
 	/* Get current directory */
 	if(getcwd(cdir, sizeof(cdir)) == NULL)
@@ -30,31 +30,63 @@ void listDir() /*for the ls command*/
 		exit(1);
 	}
 
-	/* Open current directory with opendir */
-	if((dir = opendir(cdir)) == NULL)
+	/* using scandir instead of opendir so that dir can be sorted on output */
+	n = scandir(cdir, &dp, 0, alphasort);
+	if (n < 0)
 	{
 		char str[256];
-		sprintf(str, "Cannot open directory: %s\n", cdir);
+		sprintf(str, "Cannot scan directory: %s\n", cdir);
 		write(1, str, strlen(str));
 		exit(1);
 	}
 
-	/* Write directory contents to standard output */
-	while((dp = readdir(dir)) != NULL)
+	/*
+	* Iterate through files in directory.
+	* Write 4 to standard out per line.
+	* Spaces them apart equally for nice
+	* easy to read format.
+	*/
+	for (i=0;i<n;i++)
 	{
-		char* file_name = dp->d_name;
-		char str[80];
-		sprintf(str, "%s\n", file_name);
-		file_name = NULL;
-		write(1, str, strlen(str));
+		char out[300];
+		char spaces[20] = "";
+		char* str = dp[i]->d_name;
+		int len = strlen(str);
+		int num_spcs = 20 - len;
+		while(num_spcs)
+		{
+			strcat(spaces, " ");
+			num_spcs--;
+		}
+		char a = ' ';
+		if(((i+1) % 4 == 0) || i+1 == n)
+		{
+			a = '\n';
+		}
+		sprintf(out, "%s%s%c", str, spaces, a);
+		write(1, out, strlen(out));
+		free(dp[i]);
 	}
-
-	closedir(dir);
+	free(dp);
 }
 
 void showCurrentDir() /*for the pwd command*/
 {
+	/* Variable assignment */
+	char cdir[256];
 
+	/* Get current directory */
+	if(getcwd(cdir, sizeof(cdir)) == NULL)
+	{
+		const char error[] = "Error with getcwd()\n";
+		write(1, error, sizeof(error) - 1);
+		exit(1);
+	}
+
+	/* Write directory to standard out */
+	char str[256];
+	sprintf(str, "Current Directory: %s\n", cdir);
+	write(1, str, strlen(str));
 }
 
 void makeDir(char *dirName) /*for the mkdir command*/
