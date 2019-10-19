@@ -51,6 +51,7 @@ int commandHandler(char* command)
 	switch(commandCheck(token))
 	{
 		case 1: //ls
+			/* Error Checking */
 			token = strtok_r(NULL, s, &saveptr2);
 			if (token != NULL)
 			{
@@ -62,9 +63,11 @@ int commandHandler(char* command)
 				printf("Error! Unsupported parameters for command: ls\n");
 				return 2;
 			}
+			listDir();
 			return 1;
 
 		case 2: //pwd
+			/* Error Checking */
 			token = strtok_r(NULL, s, &saveptr2);
 			if (token != NULL)
 			{
@@ -154,7 +157,7 @@ void commandMode()
 	the command line.
 
 	Uses getline(3) to take user input.
-	This input is then separated by ";" and "\n"
+	This input is then separated by ";"
 	into tokens. Each token is then processed
 	by commandHandler until finished, or
 	until an error occurs.
@@ -173,6 +176,11 @@ void commandMode()
 
 	/* Malloc Memory for Buffer */
 	buf = (char*)malloc(bsize * sizeof(char));
+	if(buf == NULL)
+	{
+		printf("Memory for buffer not allocated.\n");
+		exit(1);
+	}
 
 	/* Main run loop */
 	while(running)
@@ -184,8 +192,10 @@ void commandMode()
 		/* Tokenize Input String */
 		command_token = strtok_r(buf, sc, &saveptr);
 
+		/* Runs until all commands have gone through commandHandler() */
 		while(command_token != NULL)
 		{
+			/* commandHandler() returns 2 on error and 0 on exit*/
 			running = commandHandler(command_token);
 			if(!running || running == 2)
 			{
@@ -212,11 +222,10 @@ void fileMode(char* filename)
 int main(int argc, char *argv[])
 {
 	/*
-
 	Main handles flags, launches proper mode based on given arguments.
 	If inproper arguments given, program exits.
 	This ensures that memory is not allocated unless needed.
-
+	Also so that extra variables are not assigned.
 	*/
 	if (argv[1] == NULL)
 	{
