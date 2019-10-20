@@ -307,7 +307,6 @@ void displayFile(char *filename) /*for the cat command*/
 		/* Not the best for recursion, needed a way to set buf to null */
 		memset(buf, 0, count);
 	}
-	write(1, "\n", sizeof("\n"));
 
 	close(fd);
 }
