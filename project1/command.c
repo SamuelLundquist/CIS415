@@ -110,7 +110,7 @@ void makeDir(char *dirName) /*for the mkdir command*/
 
 	if(mkdir(dirName, mode) == -1)
 	{
-		const char error[] = "Error with mkdir(): Bad directory name.\n";
+		const char error[] = "Error with mkdir(): Could not create directory.\n";
 		write(1, error, sizeof(error) - 1);
 		return;
 	}
@@ -194,11 +194,18 @@ void copyFile(char *sourcePath, char *destinationPath) /*for the cp command*/
 		return;
 	}
 
-	while(read(fd, buf, count) > 0)
+	int x;
+	while((x = read(fd, buf, count)) > 0)
 	{
+		if(x < count)
+		{
+			while(x < count)
+			{
+				buf[x] = 0;
+				x++;
+			}
+		}
 		write(fd2, buf, count);
-		/* Not the best for recursion, needed a way to set buf to null */
-		memset(buf, 0, count);
 	}
 
 	close(fd);
@@ -265,11 +272,18 @@ void moveFile(char *sourcePath, char *destinationPath) /*for the mv command*/
 			return;
 		}
 
-		while(read(fd, buf, count) > 0)
+		int x;
+		while((x = read(fd, buf, count)) > 0)
 		{
+			if(x < count)
+			{
+				while(x < count)
+				{
+					buf[x] = 0;
+					x++;
+				}
+			}
 			write(fd2, buf, count);
-			/* Not the best for recursion, needed a way to set buf to null */
-			memset(buf, 0, count);
 		}
 
 		close(fd);
@@ -292,6 +306,7 @@ void displayFile(char *filename) /*for the cat command*/
 	int fd;
 	char buf[32];
 	size_t count = 32;
+	int x;
 
 	fd = open(filename, O_RDONLY);
 	if(fd < 0)
@@ -301,12 +316,18 @@ void displayFile(char *filename) /*for the cat command*/
 		return;
 	}
 
-	while(read(fd, buf, count) > 0)
+	while((x = read(fd, buf, count)) > 0)
 	{
+		if(x < count)
+		{
+			while(x < count)
+			{
+				buf[x] = 0;
+				x++;
+			}
+		}
 		write(1, buf, count);
-		/* Not the best for recursion, needed a way to set buf to null */
-		memset(buf, 0, count);
 	}
-
+	write(1, "\n", sizeof("\n") - 1);
 	close(fd);
 }
