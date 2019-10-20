@@ -109,21 +109,28 @@ void makeDir(char *dirName) /*for the mkdir command*/
 
 	if(mkdir(dirName, mode) == -1)
 	{
-		const char error[] = "Error with mkdir()\n";
+		const char error[] = "Error with mkdir(): Bad directory name.\n";
 		write(1, error, sizeof(error) - 1);
-		exit(1);
+		//exit(1);
 	}
-	if(chmod(dirName, mode) == -1)
+	else
 	{
-		const char error[] = "Error with chmod()\n";
-		write(1, error, sizeof(error) - 1);
-		exit(1);
+		if(chmod(dirName, mode) == -1)
+		{
+			const char error[] = "Error with chmod()\n";
+			write(1, error, sizeof(error) - 1);
+			exit(1);
+		}
 	}
 }
 
 void changeDir(char *dirName) /*for the cd command*/
 {
-
+	if(chdir(dirName) == -1)
+	{
+		const char error[] = "Error with chdir(): Bad directory path.\n";
+		write(1, error, sizeof(error) - 1);
+	}
 }
 
 void copyFile(char *sourcePath, char *destinationPath) /*for the cp command*/
