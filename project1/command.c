@@ -9,6 +9,7 @@
 *
 */
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,9 +40,9 @@ void listDir() /*for the ls command*/
 	/* Get current directory */
 	if(getcwd(cdir, sizeof(cdir)) == NULL)
 	{
-		const char error[] = "Error with getcwd()\n";
+		const char error[] = "Error with getcwd(): Could not load directory.\n";
 		write(1, error, sizeof(error) - 1);
-		exit(1);
+		return;
 	}
 
 	/* using scandir instead of opendir so that dir can be sorted on output */
@@ -51,7 +52,7 @@ void listDir() /*for the ls command*/
 		char str[256];
 		sprintf(str, "Cannot scan directory: %s\n", cdir);
 		write(1, str, strlen(str));
-		exit(1);
+		return;
 	}
 
 	/*
@@ -92,9 +93,9 @@ void showCurrentDir() /*for the pwd command*/
 	/* Get current directory */
 	if(getcwd(cdir, sizeof(cdir)) == NULL)
 	{
-		const char error[] = "Error with getcwd()\n";
+		const char error[] = "Error with getcwd(): Could not load directory.\n";
 		write(1, error, sizeof(error) - 1);
-		exit(1);
+		return;
 	}
 
 	/* Write directory to standard out */
@@ -111,15 +112,15 @@ void makeDir(char *dirName) /*for the mkdir command*/
 	{
 		const char error[] = "Error with mkdir(): Bad directory name.\n";
 		write(1, error, sizeof(error) - 1);
-		//exit(1);
+		return;
 	}
 	else
 	{
 		if(chmod(dirName, mode) == -1)
 		{
-			const char error[] = "Error with chmod()\n";
+			const char error[] = "Error with chmod(): Could not set permissions.\n";
 			write(1, error, sizeof(error) - 1);
-			exit(1);
+			return;
 		}
 	}
 }
@@ -145,10 +146,34 @@ void moveFile(char *sourcePath, char *destinationPath) /*for the mv command*/
 
 void deleteFile(char *filename) /*for the rm command*/
 {
-
+	if(unlink(filename) == -1)
+	{
+		const char error[] = "Error with unlink()\n";
+		write(1, error, sizeof(error) - 1);
+	}
 }
 
 void displayFile(char *filename) /*for the cat command*/
 {
+	int file_descriptor;
+	char buf[32];
+	size_t count = 32;
 
+	file_descriptor = open(filename, O_RDONLY);
+	if(file_descriptor < 0)
+	{
+		const char error[] = "Error with open(): Bad file path.\n";
+		write(1, error, sizeof(error) - 1);
+		return;
+	}
+
+	while(read(file_descriptor, buf, count) > 0)
+	{
+		write(1, buf, count);
+		/* Not the best for recursion, needed a way to set buf to null */
+		memset(buf, 0, count);
+	}
+	write(1, "\n", sizeof("\n"));
+
+	close(file_descriptor);
 }
