@@ -136,12 +136,146 @@ void changeDir(char *dirName) /*for the cd command*/
 
 void copyFile(char *sourcePath, char *destinationPath) /*for the cp command*/
 {
+	/* Variable assignment */
+	char cdir[256];
+	int fd, fd2;
+	char buf[32];
+	size_t count = 32;
+	int ch = '.';
 
+	char* a = strrchr(sourcePath, ch);
+	char* b = strrchr(destinationPath, ch);
+	if(strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0)
+	{
+		const char error[] = "Error! Filetypes are not the same.\n";
+		write(1, error, sizeof(error) - 1);
+		return;
+	}
+
+	/* Get current directory */
+	if(getcwd(cdir, sizeof(cdir)) == NULL)
+	{
+		const char error[] = "Error with getcwd(): Could not load directory.\n";
+		write(1, error, sizeof(error) - 1);
+		return;
+	}
+	char src[256];
+	char dst[256];
+	sprintf(src, "%s/%s", cdir, sourcePath);
+
+	if(strcmp(destinationPath, ".") == 0)
+	{
+		char* name = strrchr(src, '/');
+		sprintf(dst, "%s%s", cdir, name);
+	}
+	else
+	{
+		sprintf(dst, "%s/%s", cdir, destinationPath);
+	}
+
+	if(strcmp(src,dst) == 0)
+	{
+		return;
+	}
+
+	fd = open(src, O_RDONLY);
+	if(fd < 0)
+	{
+		const char error[] = "Error with open(): Bad file path.\n";
+		write(1, error, sizeof(error) - 1);
+		return;
+	}
+
+	fd2 = open(dst, O_CREAT | O_WRONLY, 00700);
+	if(fd2 < 0)
+	{
+		const char error[] = "Error with open(): Could not open/create file.\n";
+		write(1, error, sizeof(error) - 1);
+		return;
+	}
+
+	while(read(fd, buf, count) > 0)
+	{
+		write(fd2, buf, count);
+		/* Not the best for recursion, needed a way to set buf to null */
+		memset(buf, 0, count);
+	}
+
+	close(fd);
+	close(fd2);
 }
 
 void moveFile(char *sourcePath, char *destinationPath) /*for the mv command*/
 {
+		/* Variable assignment */
+		char cdir[256];
+		int fd, fd2;
+		char buf[32];
+		size_t count = 32;
+		int ch = '.';
 
+		char* a = strrchr(sourcePath, ch);
+		char* b = strrchr(destinationPath, ch);
+		if(strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0)
+		{
+			const char error[] = "Error! Filetypes are not the same.\n";
+			write(1, error, sizeof(error) - 1);
+			return;
+		}
+
+		/* Get current directory */
+		if(getcwd(cdir, sizeof(cdir)) == NULL)
+		{
+			const char error[] = "Error with getcwd(): Could not load directory.\n";
+			write(1, error, sizeof(error) - 1);
+			return;
+		}
+		char src[256];
+		char dst[256];
+		sprintf(src, "%s/%s", cdir, sourcePath);
+
+		if(strcmp(destinationPath, ".") == 0)
+		{
+			char* name = strrchr(src, '/');
+			sprintf(dst, "%s%s", cdir, name);
+		}
+		else
+		{
+			sprintf(dst, "%s/%s", cdir, destinationPath);
+		}
+
+		if(strcmp(src,dst) == 0)
+		{
+			return;
+		}
+
+		fd = open(src, O_RDONLY);
+		if(fd < 0)
+		{
+			const char error[] = "Error with open(): Bad file path.\n";
+			write(1, error, sizeof(error) - 1);
+			return;
+		}
+
+		fd2 = open(dst, O_CREAT | O_WRONLY, 00700);
+		if(fd2 < 0)
+		{
+			const char error[] = "Error with open(): Could not open/create file.\n";
+			write(1, error, sizeof(error) - 1);
+			return;
+		}
+
+		while(read(fd, buf, count) > 0)
+		{
+			write(fd2, buf, count);
+			/* Not the best for recursion, needed a way to set buf to null */
+			memset(buf, 0, count);
+		}
+
+		close(fd);
+		close(fd2);
+
+		deleteFile(src);
 }
 
 void deleteFile(char *filename) /*for the rm command*/
@@ -155,19 +289,19 @@ void deleteFile(char *filename) /*for the rm command*/
 
 void displayFile(char *filename) /*for the cat command*/
 {
-	int file_descriptor;
+	int fd;
 	char buf[32];
 	size_t count = 32;
 
-	file_descriptor = open(filename, O_RDONLY);
-	if(file_descriptor < 0)
+	fd = open(filename, O_RDONLY);
+	if(fd < 0)
 	{
 		const char error[] = "Error with open(): Bad file path.\n";
 		write(1, error, sizeof(error) - 1);
 		return;
 	}
 
-	while(read(file_descriptor, buf, count) > 0)
+	while(read(fd, buf, count) > 0)
 	{
 		write(1, buf, count);
 		/* Not the best for recursion, needed a way to set buf to null */
@@ -175,5 +309,5 @@ void displayFile(char *filename) /*for the cat command*/
 	}
 	write(1, "\n", sizeof("\n"));
 
-	close(file_descriptor);
+	close(fd);
 }
