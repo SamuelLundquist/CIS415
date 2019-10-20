@@ -8,6 +8,7 @@
 * Notes:
 *
 */
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,19 @@
 
 void listDir() /*for the ls command*/
 {
+	/*
+		List Current Directory Function
+
+		- Uses getcwd to find current directory.
+		- Filenames are then displayed with scandir
+		so that they are displayed in proper order.
+		- Four files are displayed per line, and are
+		set with proper spacing so that they are in
+		collumns. Unless the file name is larger than
+		20 chars, in that case a single space is used
+		after the file name.
+	*/
+
 	/* Variable assignment */
 	char cdir[256];
 	int i,n;
@@ -91,7 +105,20 @@ void showCurrentDir() /*for the pwd command*/
 
 void makeDir(char *dirName) /*for the mkdir command*/
 {
+	mode_t mode = 0777;
 
+	if(mkdir(dirName, mode) == -1)
+	{
+		const char error[] = "Error with mkdir()\n";
+		write(1, error, sizeof(error) - 1);
+		exit(1);
+	}
+	if(chmod(dirName, mode) == -1)
+	{
+		const char error[] = "Error with chmod()\n";
+		write(1, error, sizeof(error) - 1);
+		exit(1);
+	}
 }
 
 void changeDir(char *dirName) /*for the cd command*/

@@ -15,6 +15,13 @@
 
 int commandCheck(char* cmd)
 {
+	/*
+		Command Check Function
+		Returns number of command or 0
+		if command is not recognized.
+	*/
+
+	/* 1 - 4 take no params, 5 - 8 take 1 param, 9 - 10 take 2 params*/
 	char commands[11][6] = { "help", "exit", "ls", "pwd", "mkdir", "cd", "cat", "rm", "cp", "mv" };
 
 	for(int i = 0; i < 10; i++)
@@ -275,10 +282,12 @@ void fileMode(char* filename)
 		exit(1);
 	}
 
+	/* Open files */
 	FILE* read_file = fopen(filename, "r");
 	char outputFile[] = "output.txt";
 	FILE* write_file = freopen(outputFile, "w", stdout);
 
+	/* Main function loop */
 	while(fgets(buf, bsize, read_file) && running)
 	{
 		/* Tokenize Input String */
@@ -296,6 +305,8 @@ void fileMode(char* filename)
 			command_token = strtok_r(NULL, sc, &saveptr);
 		}
 	}
+
+	/* free all memory */
 	fclose(read_file);
 	fclose(write_file);
 	free(buf);
