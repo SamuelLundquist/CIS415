@@ -63,7 +63,7 @@ void listDir() /*for the ls command*/
 	*/
 	for (i=0;i<n;i++)
 	{
-		char out[300];
+		char out[276];
 		char spaces[20] = "";
 		char* str = dp[i]->d_name;
 		int len = strlen(str);
@@ -73,13 +73,18 @@ void listDir() /*for the ls command*/
 			strcat(spaces, " ");
 			num_spcs--;
 		}
-		char a = ' ';
+		char* a;
 		if(((i+1) % 4 == 0) || i+1 == n)
 		{
-			a = '\n';
+			a = "\n";
 		}
-		sprintf(out, "%s%s%c", str, spaces, a);
-		write(1, out, strlen(out));
+		else
+		{
+			a = " ";
+		}
+		sprintf(out, "%s%s", str, spaces);
+		write(1, out, strlen(out) - 1);
+		write(1, a, strlen(a));
 		free(dp[i]);
 	}
 	free(dp);

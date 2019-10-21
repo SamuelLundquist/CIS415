@@ -57,6 +57,12 @@ int commandHandler(char* command)
 	int cmd;
 	char* saveptr2;
 
+	if(strcmp(command, " ") == 0)
+	{
+		printf("Error! Unrecognized command: \n");
+		return 2;
+	}
+
 	token0 = strtok_r(command, s, &saveptr2);
 	cmd = commandCheck(token0);
 	if(!cmd)
@@ -229,7 +235,6 @@ void commandMode()
 
 		/* Tokenize Input String */
 		command_token = strtok_r(buf, sc, &saveptr);
-
 		/* Runs until all commands have gone through commandHandler() */
 		while(command_token != NULL)
 		{
