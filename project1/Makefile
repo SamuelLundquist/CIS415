@@ -14,8 +14,5 @@ pseudo-shell: $(OBJ)
 run:
 	./pseudo-shell -command
 
-runf: input.txt
-	./psuedo-shell -f input.txt
-
 clean:
 	rm *.o pseudo-shell
