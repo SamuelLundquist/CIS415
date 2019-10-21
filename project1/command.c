@@ -150,9 +150,9 @@ void copyFile(char *sourcePath, char *destinationPath) /*for the cp command*/
 
 	char* a = strrchr(sourcePath, ch);
 	char* b = strrchr(destinationPath, ch);
-	if(strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0)
+	if( !a || !b || (strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0))
 	{
-		const char error[] = "Error! Filetypes are not the same.\n";
+		const char error[] = "Error! Invalid filetypes.\n";
 		write(1, error, sizeof(error) - 1);
 		return;
 	}
@@ -228,9 +228,9 @@ void moveFile(char *sourcePath, char *destinationPath) /*for the mv command*/
 
 		char* a = strrchr(sourcePath, ch);
 		char* b = strrchr(destinationPath, ch);
-		if(strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0)
+		if(!a || !b || (strcmp(a,b) != 0 && strcmp(destinationPath, ".") != 0))
 		{
-			const char error[] = "Error! Filetypes are not the same.\n";
+			const char error[] = "Error! Invalid filetypes.\n";
 			write(1, error, sizeof(error) - 1);
 			return;
 		}
