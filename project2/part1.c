@@ -136,6 +136,7 @@ int main(int argc, char **argv)
 	}
 	/*************************************************************/
 
+	/* Get commands recursively from file and then print them to console */
 	char ***commands = getCommands(read_file, 0);
 	fclose(read_file);
 	int num_commands = 0;
@@ -153,26 +154,31 @@ int main(int argc, char **argv)
 		printf("\n");
 		num_commands++;
 	}
+	/*************************************************************/
 
+	/* Fork processes and run execvp() for each command in commands */
 	for(int i = 0 ; i < num_commands ; i++)
 	{
 		if(fork() == 0)
 		{
 			printf("%d: [son] pid %d from [parent] pid %d\n", i, getpid(), getppid());
 			execvp(commands[i][0], commands[i]);
-			printf("Exiting now\n");
+			printf("execvp() failed.\n");
 			exit(0);
 		}
 
 	}
+	/*************************************************************/
+
+	/* Wait for all forked processes to finish execution */
 	for(int i = 0; i < num_commands; i++)
 	{
 		printf("waiting\n");
 		wait(NULL);
 	}
-	printf("Done waiting\n");
+	/*************************************************************/
 
-	printf("%d\n", num_commands);
+	printf("Done waiting\n");
 
 	freeCommands(commands);
 }

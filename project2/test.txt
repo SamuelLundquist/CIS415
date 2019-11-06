@@ -1,0 +1,7 @@
+ls -a -r -s
+sleep 1
+invalid name
+test 3
+test
+test -1
+test 0
