@@ -114,6 +114,13 @@ void handler(int signal)
 	printf("    Child %d - Recieved signal %d, starting process...\n", getpid(), signal);
 }
 
+int flag = 0;
+void alarmHandler(int signal)
+{
+	flag = 1;
+	alarm(2);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -167,6 +174,13 @@ int main(int argc, char **argv)
 	pid_t w;
 	int status;
 	int index = 0;
+
+	int sig;
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	sigprocmask( SIG_BLOCK, &set, NULL );
+
 	signal(SIGUSR1, handler);
 	for(int i = 0 ; i < num_commands ; i++)
 	{
@@ -174,7 +188,7 @@ int main(int argc, char **argv)
 		if((pid = fork()) == 0)
 		{
 			printf("    Child %d sucessfully forked\n", getpid());
-			pause();
+			sigwait(&set, &sig);
 			execvp(commands[i][0], commands[i]);
 			printf("    Child %d execvp() failed.\n", getpid());
 			exit(EXIT_FAILURE);
@@ -207,18 +221,18 @@ int main(int argc, char **argv)
 
 	}
 
+	signal(SIGALRM, alarmHandler);
+	raise(SIGALRM);
 
 	while(1)
 	{
-		//Wait 2 seconds before switching processes
-		sleep(2);
-
-		//Get current running process
 		pid_t current = pids[index];
+		if(flag)
+		{
 
 		//If current process is running, stop it.
 		//If no longer running, let user know it has been completed.
-		if((w = waitpid(current, &status, WNOHANG)) == 0)
+		if((w = waitpid(current, &status, WNOHANG)) >= 0)
 		{
 			if(kill(current, SIGSTOP) == 0)
 			{
@@ -252,7 +266,7 @@ int main(int argc, char **argv)
 		//If it's already done, then we can end the program.
 		if(pids[index] == current)
 		{
-			if((w = waitpid(current, &status, WNOHANG)) == 0)
+			if((w = waitpid(current, &status, WNOHANG)) >= 0)
 			{
 				//Continue process
 				if(kill(current, SIGCONT) == 0)
@@ -264,6 +278,13 @@ int main(int argc, char **argv)
 			{
 				break;
 			}
+		}
+		flag = 0;
+		}
+		if((w = waitpid(current, &status, WNOHANG)) < 0)
+		{
+			alarm(0);
+			raise(SIGALRM);
 		}
 	}
 

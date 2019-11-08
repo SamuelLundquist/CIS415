@@ -166,6 +166,12 @@ int main(int argc, char **argv)
 	pid_t pids[num_commands];
 	pid_t w;
 	int status;
+	int sig;
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	sigprocmask( SIG_BLOCK, &set, NULL );
+
 	signal(SIGUSR1, handler);
 	for(int i = 0 ; i < num_commands ; i++)
 	{
@@ -173,7 +179,7 @@ int main(int argc, char **argv)
 		if((pid = fork()) == 0)
 		{
 			printf("    Child %d sucessfully forked\n", getpid());
-			pause();
+			sigwait(&set, &sig);
 			execvp(commands[i][0], commands[i]);
 			printf("    Child %d execvp() failed.\n", getpid());
 			exit(EXIT_FAILURE);
