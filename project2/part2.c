@@ -111,8 +111,7 @@ void freeCommands(char ***arr)
 
 void handler(int signal)
 {
-	printf("    Child Process: %d - Recieved signal: %d", getpid(), signal);
-	raise(SIGCONT);
+	printf("    Child %d - Recieved signal %d, starting process...\n", getpid(), signal);
 }
 
 int main(int argc, char **argv)
@@ -165,18 +164,18 @@ int main(int argc, char **argv)
 
 	/* Fork processes and run execvp() for each command in commands */
 	pid_t pids[num_commands];
-
+	pid_t w;
+	int status;
+	signal(SIGUSR1, handler);
 	for(int i = 0 ; i < num_commands ; i++)
 	{
 		pid_t pid;
 		if((pid = fork()) == 0)
 		{
-			printf("%d: [son] pid %d from [parent] pid %d\n", i, getpid(), getppid());
-			signal(SIGUSR1, handler);
-			//raise(SIGSTOP);
-			//raise(SIGCONT);
+			printf("    Child %d sucessfully forked\n", getpid());
+			pause();
 			execvp(commands[i][0], commands[i]);
-			printf("[son] %d: execvp() failed.\n", getpid());
+			printf("    Child %d execvp() failed.\n", getpid());
 			exit(EXIT_FAILURE);
 		}
 		if(pid < 0)
@@ -191,18 +190,42 @@ int main(int argc, char **argv)
 	}
 	/*************************************************************/
 
-	/*
+	sleep(1);
 	for(int i = 0; i < num_commands; i++)
 	{
 		kill(pids[i], SIGUSR1);
 	}
-	*/
+
+
+	printf("Stopping all processes...\n");
+	for(int i = 0; i < num_commands; i++)
+	{
+		pid_t p = pids[i];
+		if(kill(p, SIGSTOP) == 0)
+		{
+			printf("Successfully stopped process %d\n", p);
+		}
+
+	}
+
+	sleep(3);
+	printf("Continuing all processes...\n");
+	for(int i = 0; i < num_commands; i++)
+	{
+		pid_t p = pids[i];
+		if(kill(pids[i], SIGCONT) == 0)
+		{
+			printf("Successfully started process %d\n", p);
+		}
+	}
+
 
 	/* Wait for all forked processes to finish execution */
 	for(int i = 0; i < num_commands; i++)
 	{
-		printf("waiting\n");
-		wait(NULL);
+		pid_t pd = pids[i];
+		printf("Waiting for child %d\n", pd);
+		w = waitpid(pd, &status, 0);
 	}
 	/*************************************************************/
 
