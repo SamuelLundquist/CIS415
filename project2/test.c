@@ -8,12 +8,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 int main(int argc, char **argv)
 {
 	/*
 		This is a simple test function for the exec command in project 2.
-		Given a positive int n as argument, prints "Test" n times.
+		Given a positive int n as argument, sleeps for n seconds.
 	*/
 	int i;
 
@@ -31,10 +32,9 @@ int main(int argc, char **argv)
 	{
 		if((i = atoi(argv[1])))
 		{
-			while(i > 0)
+			for(int a = 0; a < i; a++)
 			{
-				printf("Test\n");
-				i--;
+				sleep(1);
 			}
 		}
 		else
