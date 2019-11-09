@@ -13,6 +13,64 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+struct Node
+{
+	int id;
+	pid_t pid;
+	struct Node *next;
+};
+
+typedef struct
+{
+	int len;
+	struct Node *head, *tail;
+}Queue;
+
+struct Node *dequeue(Queue *q)
+{
+	Queue newq = *q;
+	if(newq.head == NULL)
+	{
+		return NULL;
+	}
+	else
+	{
+		newq.len--;
+		struct Node *ret = newq.head;
+		if(ret->next == NULL)
+		{
+			newq.tail = NULL;
+			newq.head = NULL;
+			*q = newq;
+			return ret;
+		}
+		else
+		{
+			newq.head = ret->next;
+			*q = newq;
+			ret->next = NULL;
+			return ret;
+		}
+	}
+}
+
+void enqueue(Queue *q, struct Node * n)
+{
+	Queue newq = *q;
+	newq.len++;
+	if(newq.tail == NULL)
+	{
+		newq.head = n;
+		newq.tail = n;
+	}
+	else
+	{
+		(newq.tail)->next = n;
+		newq.tail = n;
+	}
+	*q = newq;
+}
+
 char **malloc2DArr(int num, int char_size)
 {
 	char **new_arr = malloc(num * sizeof(char*));
@@ -155,10 +213,10 @@ int main(int argc, char **argv)
 	int num_commands = 0;
 	int j = 0;
 	char *p;
-	char **q;
-	while((q = commands[num_commands]) != NULL)
+	char **z;
+	while((z = commands[num_commands]) != NULL)
 	{
-		while((p = q[j]) != NULL)
+		while((p = z[j]) != NULL)
 		{
 			printf("%s ", p);
 			j++;
@@ -170,10 +228,13 @@ int main(int argc, char **argv)
 	/*************************************************************/
 
 	/* Fork processes and run execvp() for each command in commands */
-	pid_t pids[num_commands];
+	Queue q = { .len = 0, .head = NULL, .tail = NULL, };
+	struct Node *current;
+	struct Node *nodes;
+	nodes = malloc(sizeof(struct Node) * num_commands);
+	//pid_t pids[num_commands];
 	pid_t w;
 	int status;
-	int index = 0;
 
 	int sig;
 	sigset_t set;
@@ -200,93 +261,92 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			pids[i] = pid;
+			//pids[i] = pid;
+			struct Node node = { .id = i, .pid = pid, .next = NULL };
+			nodes[i] = node;
+			enqueue(&q, &nodes[i]);
 		}
 	}
+	current = dequeue(&q);
 	/*************************************************************/
 
 	sleep(1);
-	for(int i = 0; i < num_commands; i++)
+	struct Node *n = current;
+	while(n != NULL)
 	{
-		kill(pids[i], SIGUSR1);
+		kill(n->pid, SIGUSR1);
+		n = n->next;
 	}
 
-	for(int i = 1; i < num_commands; i++)
+	n = q.head;
+	while(n != NULL)
 	{
-		pid_t p = pids[i];
+		pid_t p = n->pid;
 		if(kill(p, SIGSTOP) == 0)
 		{
 			printf("Successfully stopped process %d\n", p);
 		}
-
+		n = n->next;
 	}
 
 	signal(SIGALRM, alarmHandler);
 	raise(SIGALRM);
-
+	pid_t pid = current->pid;
 	while(1)
 	{
-		pid_t current = pids[index];
 		if(flag)
 		{
-
-		//If current process is running, stop it.
-		//If no longer running, let user know it has been completed.
-		if((w = waitpid(current, &status, WNOHANG)) >= 0)
-		{
-			if(kill(current, SIGSTOP) == 0)
+			//If current process is running, stop it.
+			//If no longer running, let user know it has been completed.
+			if((w = waitpid(pid, &status, WNOHANG)) >= 0)
 			{
-				printf("Successfully stopped process %d\n", current);
-			}
-		}
-		else
-		{
-			printf("Successfully completed process %d.\n", current);
-		}
-
-		//Finds a new process to run from pids[] that hasn't finished executing.
-		for(int i = index + 1; i != index; i++)
-		{
-			if(i >= num_commands){i = 0;};
-			pid_t p = pids[i];
-			if((w = waitpid(p, &status, WNOHANG)) >= 0)
-			{
-				//Continue process
-				if(kill(p, SIGCONT) == 0)
+				if(kill(pid, SIGSTOP) == 0)
 				{
-					printf("Successfully started process %d\n", p);
-				}
-				index = i;
-				//An unfinished process has been found and started, stop search.
-				break;
-			}
-		}
-
-		//If new process is the current process, make sure it needs to finish
-		//If it's already done, then we can end the program.
-		if(pids[index] == current)
-		{
-			if((w = waitpid(current, &status, WNOHANG)) >= 0)
-			{
-				//Continue process
-				if(kill(current, SIGCONT) == 0)
-				{
-					printf("Successfully started process %d\n", current);
+					printf("Successfully stopped process %d\n", pid);
+					enqueue(&q, current);
 				}
 			}
 			else
 			{
-				break;
+				printf("Successfully completed process %d.\n", pid);
 			}
+
+			struct Node *node = dequeue(&q);
+			if(node != NULL)
+			{
+				pid_t new_pid = node->pid;
+				if(kill(new_pid, SIGCONT) == 0)
+				{
+					printf("Successfully started process %d\n", new_pid);
+				}
+				current = node;
+				pid = new_pid;
+			}
+			else
+			{
+				if((w = waitpid(pid, &status, WNOHANG)) >= 0)
+				{
+					//Continue process
+					if(kill(pid, SIGCONT) == 0)
+					{
+						printf("Successfully started process %d\n", pid);
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+			flag = 0;
 		}
-		flag = 0;
-		}
-		if((w = waitpid(current, &status, WNOHANG)) < 0)
+		if((w = waitpid(pid, &status, WNOHANG)) < 0)
 		{
 			alarm(0);
 			raise(SIGALRM);
 		}
 	}
+
+	free(nodes);
 
 	printf("Done waiting\n");
 
