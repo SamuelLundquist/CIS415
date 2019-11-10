@@ -13,7 +13,9 @@
 *	implement efficient process scheduling. This is done with alarm(2) and a
 *	SIGALRM signal handler. When the signal handler is called, the MCP will
 *	suspend the running workload process, choose the next workload process to
-*	send a SIGCONT signal, and reset the alarm.
+*	send a SIGCONT signal, and reset the alarm. Gathers relevant data from ​/proc
+*	that conveys information about what system resources each workload
+*	process is consuming.
 *
 * Author: Samuel Lundquist
 *

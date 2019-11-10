@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -std=gnu11
-EXE = part1.exe part2.exe part3.exe
+EXE = part1.exe part2.exe part3.exe part4.exe
 OBJ = iobound cpubound test
 
 %.exe: %.c
