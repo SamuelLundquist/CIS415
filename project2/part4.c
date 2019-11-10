@@ -1,5 +1,19 @@
 /*
-* Description: Project 2 Part 4.
+* Description: Project 2 Part 3.
+*
+*	Read the program workload from an input file. Each line in the file contains
+*	the name of the program(command) and its arguments. For each program,
+*	launch the program to run as a separate process using fork() and execvp().
+*	Have each forked child process wait for a SIGUSR1​ signal before calling
+*	execvp() by using sigwait(). After all of the child processes have been
+*	forked and are now waiting, the parent process must send each child process
+*	a ​SIGUSR1​ signal to wake them up. After all of the workload programs have
+*	been launched and are now executing, send each child process except the
+*	first process a ​SIGSTOP​ signal to suspend them. Use signal processing to
+*	implement efficient process scheduling. This is done with alarm(2) and a
+*	SIGALRM signal handler. When the signal handler is called, the MCP will
+*	suspend the running workload process, choose the next workload process to
+*	send a SIGCONT signal, and reset the alarm.
 *
 * Author: Samuel Lundquist
 *
@@ -13,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+/* Define Node and Queue structs to implement a process queue */
 struct Node
 {
 	int id;
@@ -22,32 +37,48 @@ struct Node
 
 typedef struct
 {
-	int len;
 	struct Node *head, *tail;
 }Queue;
+/*************************************************************/
 
 struct Node *dequeue(Queue *q)
 {
-	Queue newq = *q;
-	if(newq.head == NULL)
+	/*
+		A function used by a Queue struct to remove and replace the head
+		of the queue with the next Node struct in the queue. If nothing is
+		in the queue, returns NULL. Otherwise, a pointer to the removed
+		Node is returned.
+
+		Input:
+		- q | A pointer to a Queue struct
+
+		Output:
+		- ret | A pointer to a Node struct
+	*/
+
+	/* If the queue is empty return NULL */
+	if(q->head == NULL)
 	{
 		return NULL;
 	}
+	/* Queue not empty */
 	else
 	{
-		newq.len--;
-		struct Node *ret = newq.head;
+		/*
+			Get head 'ret' of queue, get next in queue from ret.
+			- If next is NULL, set head and tail to NULL. Return ret.
+			- Otherwise, set head to next. Set ret->next to NULL, return ret.
+		*/
+		struct Node *ret = q->head;
 		if(ret->next == NULL)
 		{
-			newq.tail = NULL;
-			newq.head = NULL;
-			*q = newq;
+			q->tail = NULL;
+			q->head = NULL;
 			return ret;
 		}
 		else
 		{
-			newq.head = ret->next;
-			*q = newq;
+			q->head = ret->next;
 			ret->next = NULL;
 			return ret;
 		}
@@ -56,19 +87,28 @@ struct Node *dequeue(Queue *q)
 
 void enqueue(Queue *q, struct Node * n)
 {
-	Queue newq = *q;
-	newq.len++;
-	if(newq.tail == NULL)
+	/*
+		A function used by a Queue struct to add a new Node struct to the Queue.
+		If tail != NULL, set tail->next to new Node and tail to new Node.
+		Otherwise, first item in queue, set head and tail to new Node.
+
+		Input:
+		- q | A pointer to a Queue struct
+		- n | A pointer to a Node struct
+
+		Output:
+		- void
+	*/
+	if(q->tail == NULL)
 	{
-		newq.head = n;
-		newq.tail = n;
+		q->head = n;
+		q->tail = n;
 	}
 	else
 	{
-		(newq.tail)->next = n;
-		newq.tail = n;
+		(q->tail)->next = n;
+		q->tail = n;
 	}
-	*q = newq;
 }
 
 char **malloc2DArr(int num, int char_size)
@@ -348,11 +388,10 @@ int main(int argc, char **argv)
 	/*************************************************************/
 
 	/* Fork processes and run execvp() for each command in commands */
-	Queue q = { .len = 0, .head = NULL, .tail = NULL, };
+	Queue q = { .head = NULL, .tail = NULL, };
 	struct Node *current;
 	struct Node *nodes;
 	nodes = malloc(sizeof(struct Node) * num_commands);
-	//pid_t pids[num_commands];
 	pid_t w;
 	int status;
 
@@ -381,7 +420,6 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			//pids[i] = pid;
 			struct Node node = { .id = i, .pid = pid, .next = NULL };
 			nodes[i] = node;
 			enqueue(&q, &nodes[i]);
