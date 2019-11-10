@@ -11,5 +11,5 @@ OBJ = iobound cpubound test
 
 all: $(EXE) $(OBJ)
 
-clean: $(EXE) $(OBJ)
+clean:
 	rm $(EXE) $(OBJ)

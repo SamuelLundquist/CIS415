@@ -14,6 +14,17 @@
 
 char **malloc2DArr(int num, int char_size)
 {
+	/*
+		A function used by arrayFromString() to malloc a 2D
+		array of chars.
+
+		Input:
+		- num | number of char pointers to malloc
+		- char_size | number of chars in each char pointer to malloc
+
+		Output:
+		- new_arr | 2D Char array [num][char_size]
+	*/
 	char **new_arr = malloc(num * sizeof(char*));
 	for (int i = 0; i < num; i++)
 	{
@@ -24,16 +35,41 @@ char **malloc2DArr(int num, int char_size)
 
 char **arrayFromString(char* s, char* delim, int index, int char_size)
 {
+	/*
+		A recursive function that uses strtok() to break down a string
+		into a 2D char array. The reason for implementing this function
+		is to take a command from a line of text in a text file, and put
+		it into char **argv format.
+
+		Input:
+		- s | A string that we want to break into 2D char array
+		- delim | The delimiter used by strtok() to separate tokens
+		- index | The index of the current token from the string
+		- char_size | The size of the longest token in the string
+
+		Output:
+		- arr | A 2D char array of the string passed to the original
+				arrayFromString() command. The last char* in the array
+				is NULL.
+	*/
 	char* word;
+	/* If first call to strtok do this */
 	if(index == 0)
 	{
 		word = strtok(s, delim);
 	}
+	/* Otherwise do this */
 	else
 	{
 		word = strtok(NULL, delim);
 	}
 
+	/*
+	If word == NULL, there is nothing left in the string. At this point we can
+	malloc a 2D array and initialize the last value to NULL. Then we return
+	this array and the rest of the previous calls to arrayFromString() can
+	input their char* 'word' to the proper index in array.
+	*/
 	if(word == NULL)
 	{
 
@@ -42,6 +78,14 @@ char **arrayFromString(char* s, char* delim, int index, int char_size)
 		arr[index] = NULL;
 		return arr;
 	}
+
+	/*
+	Word is not NULL, so we check its length to see if it is longer than any
+	previous words. If it is, then we update char_size. We then make a recursive
+	call to arrayFromString() to tokenize the rest of the string. We get an
+	array from that call and update our current 'index' value in that array to
+	char* 'word'. Once that is done, return the 2D array.
+	*/
 	else
 	{
 		int len = strlen(word);
@@ -57,11 +101,27 @@ char **arrayFromString(char* s, char* delim, int index, int char_size)
 
 char ***getCommands(FILE* fp, int index)
 {
+	/*
+		getCommands() is a recursive function designed to take an input file and
+		break it down into a 3D array of commands to be run by the program.
+		This is done dynamically so that commands of any size can be entered in
+		the file, assuming that command can fit inside a 255 char buffer.
+
+		Input:
+		- fp | A file pointer
+		- index | The index/line of the current command in the file
+
+		Output:
+		- arr | A 3D char array of commands from a file
+	*/
+
+	/* Define variables */
 	char delim[6] = " \n\r";
 	char* buf;
 	size_t bsize = 255;
 	int line;
 
+	/* Malloc buffer for reading lines from file and handle malloc error */
 	buf = malloc(bsize * sizeof(char));
 	if(buf == NULL)
 	{
@@ -69,7 +129,17 @@ char ***getCommands(FILE* fp, int index)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Get line from file */
 	line = getline(&buf, &bsize, fp);
+
+	/*
+		line == -1 indicates that there are no more lines in the file. At this
+		point, the function mallocs a 3D array of 2D char arrays where the last
+		value in the array is equal to NULL. Note that only the top layer of
+		the array is malloced. This is because all previous calls to
+		getCommands() already malloced 2D arrays for each command, so those
+		can be assigned to their specific index in arr after this returns.
+	*/
 	if(line == -1)
 	{
 		free(buf);
@@ -78,6 +148,14 @@ char ***getCommands(FILE* fp, int index)
 		arr[index] = NULL;
 		return arr;
 	}
+	/*
+		Takes a line from the file and sends it to arrayFromString() along with
+		a delimiter to break the line down into char **argv format. Then
+		makes a susequent recursive call to getCommands() to break down the
+		rest of the file. Once this call returns, the command received
+		from arrayFromString can be updated into the current index in arr.
+
+	*/
 	else
 	{
 		char **command = arrayFromString(buf, delim, 0, 0);
@@ -90,6 +168,16 @@ char ***getCommands(FILE* fp, int index)
 
 void freeCommands(char ***arr)
 {
+	/*
+		Thic command takes 3D arrays made from getCommands() and frees
+		them so that there are no memory leaks.
+
+		Input:
+		- arr | A 3D char array
+
+		Output:
+		- void
+	*/
 	int i = 0;
 	int j = 0;
 
@@ -139,19 +227,22 @@ int main(int argc, char **argv)
 	/* Get commands recursively from file and then print them to console */
 	char ***commands = getCommands(read_file, 0);
 	fclose(read_file);
+
+	/* Find num commands, needed later */
 	int num_commands = 0;
-	int j = 0;
-	char *p;
-	char **q;
-	while((q = commands[num_commands]) != NULL)
+	char **z;
+	while((z = commands[num_commands]) != NULL)
 	{
-		while((p = q[j]) != NULL)
+		int j = 0;
+		char *p;
+		while((p = z[j]) != NULL)
 		{
 			printf("%s ", p);
 			j++;
 		}
-		j = 0;
 		printf("\n");
+
+		/* Increment here to count number of commands in 3D array commands */
 		num_commands++;
 	}
 	/*************************************************************/
@@ -176,9 +267,11 @@ int main(int argc, char **argv)
 		printf("waiting\n");
 		wait(NULL);
 	}
+	printf("Done waiting\n");
 	/*************************************************************/
 
-	printf("Done waiting\n");
-
+	//Free the 3D array of commands
 	freeCommands(commands);
+
+	exit(EXIT_SUCCESS);
 }
