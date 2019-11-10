@@ -1,6 +1,20 @@
 /*
 * Description: Project 2 Part 2.
 *
+*	Read the program workload from an input file. Each line in the file contains
+*	the name of the program(command) and its arguments. For each program,
+*	launch the program to run as a separate process using fork() and execvp().
+*	Have each forked child process wait for a SIGUSR1​ signal before calling
+*	execvp() by using sigwait(). After all of the child processes have been
+*	forked and are now waiting, the parent process must send each child process
+*	a ​SIGUSR1​ signal to wake them up. After all of the workload programs have
+*	been launched and are now executing, send each child process a ​SIGSTOP​
+*	signal to suspend them. After all of the child processes have been
+*	suspended, send each child process a ​SIGCONT​ signal to wake them up.
+*	Again, once all of the processes are back up and running, wait for each
+*	child process to terminate. After all processes have terminated, exit and
+*	free any allocated memory.
+*
 * Author: Samuel Lundquist
 *
 * Date: 11/6/2019

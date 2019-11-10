@@ -1,21 +1,75 @@
 /*
-* Description: Project 2 Part 1.
-*
-*	Read the program workload from an input file. Each line in the file contains
-*	the name of the program(command) and its arguments. For each program,
-*	launch the program to run as a separate process using fork() and execvp().
-*	Once all of the programs are running, wait for each program to terminate.
+* Description: Project 2 Part 4.
 *
 * Author: Samuel Lundquist
 *
-* Date: 11/1/2019
+* Date: 11/6/2019
 */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+struct Node
+{
+	int id;
+	pid_t pid;
+	struct Node *next;
+};
+
+typedef struct
+{
+	int len;
+	struct Node *head, *tail;
+}Queue;
+
+struct Node *dequeue(Queue *q)
+{
+	Queue newq = *q;
+	if(newq.head == NULL)
+	{
+		return NULL;
+	}
+	else
+	{
+		newq.len--;
+		struct Node *ret = newq.head;
+		if(ret->next == NULL)
+		{
+			newq.tail = NULL;
+			newq.head = NULL;
+			*q = newq;
+			return ret;
+		}
+		else
+		{
+			newq.head = ret->next;
+			*q = newq;
+			ret->next = NULL;
+			return ret;
+		}
+	}
+}
+
+void enqueue(Queue *q, struct Node * n)
+{
+	Queue newq = *q;
+	newq.len++;
+	if(newq.tail == NULL)
+	{
+		newq.head = n;
+		newq.tail = n;
+	}
+	else
+	{
+		(newq.tail)->next = n;
+		newq.tail = n;
+	}
+	*q = newq;
+}
 
 char **malloc2DArr(int num, int char_size)
 {
@@ -201,6 +255,47 @@ void freeCommands(char ***arr)
 	return;
 }
 
+void handler(int signal)
+{
+	/*
+		Signal handler for SIGUSR1. Indicates when SIGUSR1 has been sent to pid.
+		In main we have sigwait() set up on each child process after the initial
+		fork. Each child process with wait until SIGUSR1 has been raised before
+		they begin execution.
+
+		Input:
+		- signal | SIGUSR1
+
+		Output:
+		- void
+	*/
+	printf("    Child %d - Recieved signal %d, starting process...\n", getpid(), signal);
+}
+
+int flag = 0;
+void alarmHandler(int signal)
+{
+	/*
+		Alarm handler for MCP. This handler sets the state of the global
+		variable 'flag' to 1. By doing this, the MCP can enter a section
+		of code in a while loop that allows it to stop the currently running
+		process and continue another process in the queue.
+
+		The last line: alarm(2) makes it to where another SIGALRM will be raised
+		in two seconds. This makes it to where we only have to raise SIGALRM
+		once in the MCP and then it will continue to raise this signal every
+		two seconds.
+
+		Input:
+		- signal | SIGALRM
+
+		Output:
+		- void
+	*/
+	flag = 1;
+	alarm(2);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -253,30 +348,160 @@ int main(int argc, char **argv)
 	/*************************************************************/
 
 	/* Fork processes and run execvp() for each command in commands */
+	Queue q = { .len = 0, .head = NULL, .tail = NULL, };
+	struct Node *current;
+	struct Node *nodes;
+	nodes = malloc(sizeof(struct Node) * num_commands);
+	//pid_t pids[num_commands];
+	pid_t w;
+	int status;
+
+	int sig;
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+	sigprocmask( SIG_BLOCK, &set, NULL );
+
+	signal(SIGUSR1, handler);
 	for(int i = 0 ; i < num_commands ; i++)
 	{
-		if(fork() == 0)
+		pid_t pid;
+		if((pid = fork()) == 0)
 		{
-			printf("%d: [son] pid %d from [parent] pid %d\n", i, getpid(), getppid());
+			printf("    Child %d sucessfully forked\n", getpid());
+			sigwait(&set, &sig);
 			execvp(commands[i][0], commands[i]);
-			printf("execvp() failed.\n");
-			exit(0);
+			printf("    Child %d execvp() failed.\n", getpid());
+			exit(EXIT_FAILURE);
+		}
+		if(pid < 0)
+		{
+			perror("Error! could not create a new process.\n");
+			exit(EXIT_FAILURE);
+		}
+		else
+		{
+			//pids[i] = pid;
+			struct Node node = { .id = i, .pid = pid, .next = NULL };
+			nodes[i] = node;
+			enqueue(&q, &nodes[i]);
+		}
+	}
+	/*************************************************************/
+
+	/* Wait a second for all processes to fork properly before signaling */
+	sleep(1);
+
+	/* Set pointer 'n' to head of process queue */
+	struct Node *n = q.head;
+
+	/* Send SIGUSR1 to all processes by iterating through nodes in queue */
+	while(n != NULL)
+	{
+		kill(n->pid, SIGUSR1);
+		n = n->next;
+	}
+
+	/* Dequeue first node so we do not send SIGSTOP to it */
+	current = dequeue(&q);
+
+	/* reset pointer 'n' back to head of process queue */
+	n = q.head;
+
+	/* Send SIGSTOP to all processes by iterating through nodes in queue */
+	while(n != NULL)
+	{
+		pid_t p = n->pid;
+		if(kill(p, SIGSTOP) == 0)
+		{
+			printf("Successfully stopped process %d\n", p);
+		}
+		n = n->next;
+	}
+	/*************************************************************/
+
+	/*** This is where we utilize alarms to schedule processes ***/
+
+	/* Initialize alarm signal handler and raise SIGALRM */
+	signal(SIGALRM, alarmHandler);
+	raise(SIGALRM);
+
+	/* Initialize pid_t pid to reduce calls to current->pid in while loop */
+	pid_t pid = current->pid;
+
+	/*
+		This while loop has two main functions:
+
+			1.) When flag is 1, stop the current process and start the next
+			process in the queue. If current process is finished, it is not sent
+			back into the process queue. If there are no other processes in the
+			queue, then break and finish execution of the program.
+			* (Only runs when SIGALRM is raised)
+
+			2.) If the current process has finished before its alloted time
+			has finished, cancel the current alarm and raise SIGALRM. This
+			allows the scheduler to be more efficient and not waste time in
+			idle when a process has nothing else to do. Raising SIGALRM will
+			change flag to 1 and a new process will be scheduled.
+	*/
+	while(1)
+	{
+		/* 1 */
+		if(flag)
+		{
+			/* If current process running, stop it. Add it to end of queue. */
+			/* Else, no longer running, dont add it to end of queue. */
+			if((w = waitpid(pid, &status, WNOHANG)) >= 0)
+			{
+				if(kill(pid, SIGSTOP) == 0)
+				{
+					printf("Successfully stopped process %d\n", pid);
+					enqueue(&q, current);
+				}
+			}
+			else
+			{
+				printf("Successfully completed process %d.\n", pid);
+			}
+
+			/* Get next process node in queue. If it exists start it. */
+			struct Node *node = dequeue(&q);
+			if(node != NULL)
+			{
+				pid_t new_pid = node->pid;
+				if(kill(new_pid, SIGCONT) == 0)
+				{
+					printf("Successfully started process %d\n", new_pid);
+				}
+				/* Update current and pid */
+				current = node;
+				pid = new_pid;
+			}
+			/* No process in queue, exit while loop */
+			else
+			{
+				break;
+			}
+			/* Set flag to 0, wait for SIGALRM to execute this code again */
+			flag = 0;
+		}
+
+		/* 2 */
+		if((w = waitpid(pid, &status, WNOHANG)) < 0)
+		{
+			alarm(0);
+			raise(SIGALRM);
 		}
 
 	}
-	/*************************************************************/
 
-	/* Wait for all forked processes to finish execution */
-	for(int i = 0; i < num_commands; i++)
-	{
-		printf("waiting\n");
-		wait(NULL);
-	}
 	printf("Done waiting\n");
 	/*************************************************************/
 
-	//Free the 3D array of commands
+	/* Finished with nodes and commands, free them */
+	free(nodes);
 	freeCommands(commands);
 
+	/* YAY! */
 	exit(EXIT_SUCCESS);
 }
