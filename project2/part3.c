@@ -267,16 +267,16 @@ int main(int argc, char **argv)
 			enqueue(&q, &nodes[i]);
 		}
 	}
-	current = dequeue(&q);
 	/*************************************************************/
 
 	sleep(1);
-	struct Node *n = current;
+	struct Node *n = q.head;
 	while(n != NULL)
 	{
 		kill(n->pid, SIGUSR1);
 		n = n->next;
 	}
+	current = dequeue(&q);
 
 	n = q.head;
 	while(n != NULL)
