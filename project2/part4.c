@@ -338,28 +338,20 @@ void alarmHandler(int signal)
 	alarm(2);
 }
 
-void printProcTitle()
-{
-	system("clear");
-	printf("\t\t [--- PROCESS INFORMATION ---] \n");
-	printf("----------------------------------------------------------------------------\n");
-	printf(" pid |cpu|   name    |st| ppid | pgrp | sid | tgpid |    flgs   |   utime  |\n");
-	printf("-----+---+-----------+--+------+------+-----+-------+-----------+-----------\n");
-}
-
 void printProc(struct Node *nodes, int num)
 {
+	/*
+		This is the print statement that prints information to the terminal
+
+		Gets info from /proc/<PID>/stat
+	*/
+	system("clear");
+	printf("\n\t\t    [--- PROCESS INFORMATION ---] \n");
+	printf("-------------------------------------------------------------------------\n");
+	printf("  pid |   name    |st| ppid | pgrp | sid | tgpid |    flgs   |   utime  |\n");
+	printf("------+-----------+--+------+------+-----+-------+-----------+-----------\n");
 	int i;
-	/* Clean out the information in the chart */
-	for(i = 0; i < num; i++)
-	{
-		printf("     |   |           |  |      |      |     |       |           |          |\n");
-	}
-	/* Move carriage back to start */
-	for(i = 0; i < num; i++)
-	{
-		printf("\033[F");
-	}
+
 	int num_printed = num;
 	/* Print out process information proc for all unexited processes */
 	for(i = 0; i < num; i++)
@@ -379,16 +371,18 @@ void printProc(struct Node *nodes, int num)
 			size_t len = 0;
 			getline(&line, &len, fileptr);
 			char name[32];
-			char state[2];
+			char state;
 			int ppid, pgrp, sid, tgpid;
 			unsigned int flgs;
 			unsigned long int utime;
 
-			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
-			printf("%5d|%3d|%11s|%2s|%6d|%6d|%5d|%7d|%11u|%10lu\n", pid, 33, name, state, ppid, pgrp, sid, tgpid, flgs, utime);
+			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*u %*u %*u %*u %lu", name, &state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
+			printf("%6d|%11s| %c|%6d|%6d|%5d|%7d|%11u|%10lu|\n", pid, name, state, ppid, pgrp, sid, tgpid, flgs, utime);
+			free(line);
 			fclose(fileptr);
 		}
 	}
+	printf("-------------------------------------------------------------------------\n");
 	/* Move carriage back to start for next time */
 	for(i = 0; i < num_printed; i++)
 	{
@@ -398,10 +392,14 @@ void printProc(struct Node *nodes, int num)
 
 void finishPrintProc(int num)
 {
-	for(int i = num; i > 0; i--)
-	{
-		printf("\n");
-	}
+	/* Function makes a fancy all finished page */
+	system("clear");
+	printf("\n\t\t   [--- PROCESS INFORMATION ---] \n");
+	printf("-------------------------------------------------------------------------\n");
+	printf("  pid |   name    |st| ppid | pgrp | sid | tgpid |    flgs   |   utime  |\n");
+	printf("------+-----------+--+------+------+-----+-------+-----------+-----------\n\n");
+	printf("               >>> ALL PROCESSES FINSIHED EXECUTION <<<\n\n");
+	printf("-----------------------------------------------------------------------------\n");
 }
 
 int main(int argc, char **argv)
@@ -518,23 +516,21 @@ int main(int argc, char **argv)
 	while(n != NULL)
 	{
 		pid_t p = n->pid;
-		if(kill(p, SIGSTOP) == 0)
-		{
-			printf("Successfully stopped process %d\n", p);
-		}
+		kill(p, SIGSTOP);
 		n = n->next;
 	}
 	/*************************************************************/
 
 	/*** This is where we utilize alarms to schedule processes ***/
 
-	/* Initialize alarm signal handler and raise SIGALRM */
+	/* Initialize alarm signal handler and raise SIGALRM in 2s */
 	signal(SIGALRM, alarmHandler);
-	raise(SIGALRM);
+	alarm(2);
 
 	/* Initialize pid_t pid to reduce calls to current->pid in while loop */
 	pid_t pid = current->pid;
-	printProcTitle();
+
+	printProc(nodes, num_commands);
 	/*
 		This while loop has two main functions:
 
@@ -555,20 +551,11 @@ int main(int argc, char **argv)
 		/* 1 */
 		if(flag)
 		{
-			printProc(nodes, num_commands);
 			/* If current process running, stop it. Add it to end of queue. */
-			/* Else, no longer running, dont add it to end of queue. */
 			if((w = waitpid(pid, &status, WNOHANG)) >= 0)
 			{
-				if(kill(pid, SIGSTOP) == 0)
-				{
-					printProc(nodes, num_commands);
-					enqueue(&q, current);
-				}
-			}
-			else
-			{
-				printProc(nodes, num_commands);
+				kill(pid, SIGSTOP);
+				enqueue(&q, current);
 			}
 
 			/* Get next process node in queue. If it exists start it. */
@@ -576,10 +563,8 @@ int main(int argc, char **argv)
 			if(node != NULL)
 			{
 				pid_t new_pid = node->pid;
-				if(kill(new_pid, SIGCONT) == 0)
-				{
-					printProc(nodes, num_commands);
-				}
+				kill(new_pid, SIGCONT);
+
 				/* Update current and pid */
 				current = node;
 				pid = new_pid;
@@ -590,6 +575,7 @@ int main(int argc, char **argv)
 				break;
 			}
 			/* Set flag to 0, wait for SIGALRM to execute this code again */
+			printProc(nodes, num_commands);
 			flag = 0;
 		}
 
@@ -602,9 +588,6 @@ int main(int argc, char **argv)
 
 	}
 	finishPrintProc(num_commands);
-	printf("THIS IS A TEST\n");
-
-	printf("Done waiting\n");
 	/*************************************************************/
 
 	/* Finished with nodes and commands, free them */

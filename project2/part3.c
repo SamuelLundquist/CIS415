@@ -460,9 +460,9 @@ int main(int argc, char **argv)
 
 	/*** This is where we utilize alarms to schedule processes ***/
 
-	/* Initialize alarm signal handler and raise SIGALRM */
+	/* Initialize alarm signal handler and raise SIGALRM in 2s */
 	signal(SIGALRM, alarmHandler);
-	raise(SIGALRM);
+	alarm(2);
 
 	/* Initialize pid_t pid to reduce calls to current->pid in while loop */
 	pid_t pid = current->pid;

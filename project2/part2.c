@@ -281,7 +281,6 @@ int main(int argc, char **argv)
 
 	/* Fork processes and run execvp() for each command in commands */
 	pid_t pids[num_commands];
-	pid_t w;
 	int status;
 	int sig;
 	sigset_t set;
@@ -355,7 +354,7 @@ int main(int argc, char **argv)
 	{
 		pid_t pd = pids[i];
 		printf("Waiting for child %d\n", pd);
-		w = waitpid(pd, &status, 0);
+		waitpid(pd, &status, 0);
 	}
 	printf("Done waiting\n");
 	/*************************************************************/
