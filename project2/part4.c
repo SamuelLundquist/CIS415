@@ -371,7 +371,6 @@ void printProc(struct Node *nodes, int num)
 		fileptr = fopen(filepath, "r");
 		if(fileptr == NULL)
 		{
-			//printf("%5d | %3d |%9s | %5s |\n", i, 33, "yeet", "R");
 			num_printed--;
 		}
 		else
@@ -386,7 +385,6 @@ void printProc(struct Node *nodes, int num)
 			unsigned long int utime;
 
 			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
-			//printf("      |     |        |    |      |      |     |       |      |      \n");
 			printf("%5d | %3d |%5s | %2s |\n", pid, 33, name, state);
 			fclose(fileptr);
 		}
@@ -554,7 +552,6 @@ int main(int argc, char **argv)
 	*/
 	while(1)
 	{
-		//printProc(nodes, num_commands);
 		/* 1 */
 		if(flag)
 		{
@@ -565,13 +562,13 @@ int main(int argc, char **argv)
 			{
 				if(kill(pid, SIGSTOP) == 0)
 				{
-					//printf("Successfully stopped process %d\n", pid);
+					printProc(nodes, num_commands);
 					enqueue(&q, current);
 				}
 			}
 			else
 			{
-				//printf("Successfully completed process %d.\n", pid);
+				printProc(nodes, num_commands);
 			}
 
 			/* Get next process node in queue. If it exists start it. */
@@ -581,7 +578,7 @@ int main(int argc, char **argv)
 				pid_t new_pid = node->pid;
 				if(kill(new_pid, SIGCONT) == 0)
 				{
-					//printf("Successfully started process %d\n", new_pid);
+					printProc(nodes, num_commands);
 				}
 				/* Update current and pid */
 				current = node;
