@@ -340,6 +340,7 @@ void alarmHandler(int signal)
 
 void printProcTitle()
 {
+	system("clear");
 	printf("\t\t [--- PROCESS INFORMATION ---] \n");
 	printf("--------------------------------------------------------------------\n");
 	printf("  pid | cpu |  name  | st | ppid | pgrp | sid | tgpid | flgs | utime\n");
@@ -359,6 +360,7 @@ void printProc(struct Node *nodes, int num)
 	{
 		printf("\033[F");
 	}
+	int num_printed = num;
 	/* Print out process information proc for all unexited processes */
 	for(i = 0; i < num; i++)
 	{
@@ -369,7 +371,8 @@ void printProc(struct Node *nodes, int num)
 		fileptr = fopen(filepath, "r");
 		if(fileptr == NULL)
 		{
-			printf("%5d | %3d |%9s | %5s |\n", i, 33, "yeet", "R");
+			//printf("%5d | %3d |%9s | %5s |\n", i, 33, "yeet", "R");
+			num_printed--;
 		}
 		else
 		{
@@ -383,13 +386,13 @@ void printProc(struct Node *nodes, int num)
 			unsigned long int utime;
 
 			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
-			printf("      |     |        |    |      |      |     |       |      |      \n");
-			printf("%5d | %3d |%7s | %2s |\n", pid, 33, name, state);
+			//printf("      |     |        |    |      |      |     |       |      |      \n");
+			printf("%5d | %3d |%5s | %2s |\n", pid, 33, name, state);
 			fclose(fileptr);
 		}
 	}
 	/* Move carriage back to start for next time */
-	for(i = 0; i < num; i++)
+	for(i = 0; i < num_printed; i++)
 	{
 		printf("\033[F");
 	}
@@ -533,7 +536,7 @@ int main(int argc, char **argv)
 
 	/* Initialize pid_t pid to reduce calls to current->pid in while loop */
 	pid_t pid = current->pid;
-
+	printProcTitle();
 	/*
 		This while loop has two main functions:
 
@@ -551,22 +554,24 @@ int main(int argc, char **argv)
 	*/
 	while(1)
 	{
+		//printProc(nodes, num_commands);
 		/* 1 */
 		if(flag)
 		{
+			printProc(nodes, num_commands);
 			/* If current process running, stop it. Add it to end of queue. */
 			/* Else, no longer running, dont add it to end of queue. */
 			if((w = waitpid(pid, &status, WNOHANG)) >= 0)
 			{
 				if(kill(pid, SIGSTOP) == 0)
 				{
-					printf("Successfully stopped process %d\n", pid);
+					//printf("Successfully stopped process %d\n", pid);
 					enqueue(&q, current);
 				}
 			}
 			else
 			{
-				printf("Successfully completed process %d.\n", pid);
+				//printf("Successfully completed process %d.\n", pid);
 			}
 
 			/* Get next process node in queue. If it exists start it. */
@@ -576,7 +581,7 @@ int main(int argc, char **argv)
 				pid_t new_pid = node->pid;
 				if(kill(new_pid, SIGCONT) == 0)
 				{
-					printf("Successfully started process %d\n", new_pid);
+					//printf("Successfully started process %d\n", new_pid);
 				}
 				/* Update current and pid */
 				current = node;
@@ -599,8 +604,6 @@ int main(int argc, char **argv)
 		}
 
 	}
-	printProcTitle();
-	printProc(nodes, num_commands);
 	finishPrintProc(num_commands);
 	printf("THIS IS A TEST\n");
 
