@@ -342,9 +342,9 @@ void printProcTitle()
 {
 	system("clear");
 	printf("\t\t [--- PROCESS INFORMATION ---] \n");
-	printf("--------------------------------------------------------------------\n");
-	printf("  pid | cpu |  name  | st | ppid | pgrp | sid | tgpid | flgs | utime\n");
-	printf("------+-----+--------+----+------+------+-----+-------+------+-----\n");
+	printf("----------------------------------------------------------------------------\n");
+	printf(" pid |cpu|   name    |st| ppid | pgrp | sid | tgpid |    flgs   |   utime  |\n");
+	printf("-----+---+-----------+--+------+------+-----+-------+-----------+-----------\n");
 }
 
 void printProc(struct Node *nodes, int num)
@@ -353,7 +353,7 @@ void printProc(struct Node *nodes, int num)
 	/* Clean out the information in the chart */
 	for(i = 0; i < num; i++)
 	{
-		printf("      |     |        |    |      |      |     |       |      |      \n");
+		printf("     |   |           |  |      |      |     |       |           |          |\n");
 	}
 	/* Move carriage back to start */
 	for(i = 0; i < num; i++)
@@ -385,7 +385,7 @@ void printProc(struct Node *nodes, int num)
 			unsigned long int utime;
 
 			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
-			printf("%5d | %3d |%5s | %2s |\n", pid, 33, name, state);
+			printf("%5d|%3d|%11s|%2s|%6d|%6d|%5d|%7d|%11u|%10lu\n", pid, 33, name, state, ppid, pgrp, sid, tgpid, flgs, utime);
 			fclose(fileptr);
 		}
 	}
