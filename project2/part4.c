@@ -1,5 +1,5 @@
 /*
-* Description: Project 2 Part 3.
+* Description: Project 2 Part 4.
 *
 *	Read the program workload from an input file. Each line in the file contains
 *	the name of the program(command) and its arguments. For each program,
@@ -338,6 +338,71 @@ void alarmHandler(int signal)
 	alarm(2);
 }
 
+void printProcTitle()
+{
+	printf("\t\t [--- PROCESS INFORMATION ---] \n");
+	printf("--------------------------------------------------------------------\n");
+	printf("  pid | cpu |  name  | st | ppid | pgrp | sid | tgpid | flgs | utime\n");
+	printf("------+-----+--------+----+------+------+-----+-------+------+-----\n");
+}
+
+void printProc(struct Node *nodes, int num)
+{
+	int i;
+	/* Clean out the information in the chart */
+	for(i = 0; i < num; i++)
+	{
+		printf("      |     |        |    |      |      |     |       |      |      \n");
+	}
+	/* Move carriage back to start */
+	for(i = 0; i < num; i++)
+	{
+		printf("\033[F");
+	}
+	/* Print out process information proc for all unexited processes */
+	for(i = 0; i < num; i++)
+	{
+		char filepath[128];
+		FILE* fileptr;
+		pid_t pid = nodes[i].pid;
+		sprintf(filepath, "/proc/%d/stat", pid);
+		fileptr = fopen(filepath, "r");
+		if(fileptr == NULL)
+		{
+			printf("%5d | %3d |%9s | %5s |\n", i, 33, "yeet", "R");
+		}
+		else
+		{
+			char *line = NULL;
+			size_t len = 0;
+			getline(&line, &len, fileptr);
+			char name[32];
+			char state[2];
+			int ppid, pgrp, sid, tgpid;
+			unsigned int flgs;
+			unsigned long int utime;
+
+			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
+			printf("      |     |        |    |      |      |     |       |      |      \n");
+			printf("%5d | %3d |%7s | %2s |\n", pid, 33, name, state);
+		}
+		fclose(fileptr);
+	}
+	/* Move carriage back to start for next time */
+	for(i = 0; i < num; i++)
+	{
+		printf("\033[F");
+	}
+}
+
+void finishPrintProc(int num)
+{
+	for(int i = num; i > 0; i--)
+	{
+		printf("\n");
+	}
+}
+
 int main(int argc, char **argv)
 {
 
@@ -534,6 +599,10 @@ int main(int argc, char **argv)
 		}
 
 	}
+	printProcTitle();
+	printProc(nodes, num_commands);
+	finishPrintProc(num_commands);
+	printf("THIS IS A TEST\n");
 
 	printf("Done waiting\n");
 	/*************************************************************/
