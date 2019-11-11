@@ -385,8 +385,8 @@ void printProc(struct Node *nodes, int num)
 			sscanf(line, "%*d %s %c %d %d %d %*d %d %u %*lu %*lu %*lu %*lu %lu", name, state, &ppid, &pgrp, &sid, &tgpid, &flgs, &utime);
 			printf("      |     |        |    |      |      |     |       |      |      \n");
 			printf("%5d | %3d |%7s | %2s |\n", pid, 33, name, state);
+			fclose(fileptr);
 		}
-		fclose(fileptr);
 	}
 	/* Move carriage back to start for next time */
 	for(i = 0; i < num; i++)
