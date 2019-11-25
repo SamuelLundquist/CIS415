@@ -25,30 +25,29 @@ typedef struct{
 	mealTicket * const buffer;
 }MTQ;
 
-MTQ *registry[MAXQUEUES];
+static MTQ *registry[MAXQUEUES];
 
 MTQ initQueue(char* name, int length)
 {
-	mealTicket buf[length];
+	mealTicket *buf = malloc(length * sizeof(mealTicket));
+	mealTicket nul = {.ticketNum = 0, .dish = NULL};
 	for(int i = 0; i < length; i++)
 	{
-		mealTicket nul = {.ticketNum = 0, .dish = NULL};
 		buf[i] = nul;
 	}
 	buf[length-1].ticketNum = -1;
 
 	MTQ queue = { .head = 0, .tail = 0, .length = length, .buffer = buf };
 	strcpy(queue.name, name);
-	//printf("%d %d %d %d\n", queue.buffer[0].ticketNum, queue.buffer[1].ticketNum, queue.buffer[2].ticketNum, queue.buffer[3].ticketNum);
 	return queue;
 }
 
 int enqueue(char *MTQ_ID, mealTicket *MT)
 {
-	printf("WENT TO ENQUEUE\n");
 	MTQ *queue;
 	int last = MAXQUEUES-1;
 	int i;
+
 	for(i = 0; i < MAXQUEUES; i++)
 	{
 		queue = registry[i];
@@ -58,21 +57,20 @@ int enqueue(char *MTQ_ID, mealTicket *MT)
 		}
 		if(i == last)
 		{
-			printf("Could not find queue with name: %s\n", MTQ_ID);
+			printf("Enqueue error: Could not find queue with name: %s\n", MTQ_ID);
 			return 0;
 		}
 	}
+
 	int t = queue->tail;
-	printf("Tail: %d | ticketNum: %d\n", t, queue->buffer[t].ticketNum);
 	if(queue->buffer[t].ticketNum == -1)
 	{
 		return 0;
 	}
 	else
 	{
-		MT->ticketNum = t;
-		queue->buffer[t].ticketNum = t;
-		queue->buffer[t].dish = MT->dish;
+		MT->ticketNum = t+1;
+		queue->buffer[t] = *MT;
 		t++;
 		if(t == queue->length)
 		{
@@ -85,10 +83,9 @@ int enqueue(char *MTQ_ID, mealTicket *MT)
 	}
 	return 1;
 }
-/*
+
 int dequeue(char *MTQ_ID, int ticketNum, mealTicket *MT)
 {
-	printf("WENT TO DEQUEUE\n");
 	MTQ *queue;
 	int last = MAXQUEUES-1;
 	int i;
@@ -101,17 +98,20 @@ int dequeue(char *MTQ_ID, int ticketNum, mealTicket *MT)
 		}
 		if(i == last)
 		{
-			printf("Could not find queue with name: %s\n", MTQ_ID);
+			printf("Dequeue error: Could not find queue with name: %s\n", MTQ_ID);
 			return 0;
 		}
 	}
 	int h = queue->head;
 	int t = queue->tail;
-	if(queue->buffer[h].ticketNum <= 0)
+	int ticket = queue->buffer[h].ticketNum;
+
+	if(ticket <= 0)
 	{
+		*MT = queue->buffer[h];
 		return 0;
 	}
-	else
+	else if (ticket == ticketNum)
 	{
 		*MT = queue->buffer[h];
 		mealTicket nul = { .ticketNum = 0, .dish = NULL };
@@ -127,41 +127,114 @@ int dequeue(char *MTQ_ID, int ticketNum, mealTicket *MT)
 			queue->head = h+1;
 		}
 	}
+	else
+	{
+		printf("%d %d\n", ticketNum, ticket);
+		printf("Dequeue error: given ticketNum was not at the head of the queue\n");
+		return 0;
+	}
 	return 1;
 }
-*/
+
 int main()
 {
 	MTQ bkfst = initQueue("Breakfast", 4);
 	registry[0] = &bkfst;
-	printf("%d %d %d %d\n", registry[0]->buffer[0].ticketNum, registry[0]->buffer[1].ticketNum, registry[0]->buffer[2].ticketNum, registry[0]->buffer[3].ticketNum);
 
 	MTQ lnch = initQueue("Lunch", 4);
 	registry[1] = &lnch;
-	printf("%d %d %d %d\n", registry[1]->buffer[0].ticketNum, registry[1]->buffer[1].ticketNum, registry[1]->buffer[2].ticketNum, registry[1]->buffer[3].ticketNum);
+
 	MTQ dinner = initQueue("Dinner", 4);
 	registry[2] = &dinner;
-	printf("%d %d %d %d\n", registry[2]->buffer[0].ticketNum, registry[2]->buffer[1].ticketNum, registry[2]->buffer[2].ticketNum, registry[2]->buffer[3].ticketNum);
+
 	MTQ bar = initQueue("Bar", 4);
 	registry[3] = &bar;
 
-	mealTicket eggs = {.dish = "Eggs Benedict"};
-	mealTicket bacon = {.dish = "Bacon"};
-	mealTicket pancakes = {.dish = "Pancakes"};
+	mealTicket breakfast_1 = {.ticketNum = -2, .dish = "Eggs Benedict"};
+	mealTicket breakfast_2 = {.ticketNum = -2, .dish = "Bacon"};
+	mealTicket breakfast_3 = {.ticketNum = -2, .dish = "Pancakes"};
+	enqueue("Breakfast", &breakfast_1);
+	enqueue("Breakfast", &breakfast_2);
+	enqueue("Breakfast", &breakfast_3);
 
-	printf("%d %d %d %d\n", registry[0]->buffer[0].ticketNum, registry[0]->buffer[1].ticketNum, registry[0]->buffer[2].ticketNum, registry[0]->buffer[3].ticketNum);
-	printf("%d %d %d %d\n", registry[1]->buffer[0].ticketNum, registry[1]->buffer[1].ticketNum, registry[1]->buffer[2].ticketNum, registry[1]->buffer[3].ticketNum);
-	printf("%d %d %d %d\n", registry[2]->buffer[0].ticketNum, registry[2]->buffer[1].ticketNum, registry[2]->buffer[2].ticketNum, registry[2]->buffer[3].ticketNum);
+	mealTicket lunch_1 = {.ticketNum = -2, .dish = "Sandwich"};
+	mealTicket lunch_2 = {.ticketNum = -2, .dish = "Salad"};
+	mealTicket lunch_3 = {.ticketNum = -2, .dish = "Sodapopski"};
+	enqueue("Lunch", &lunch_1);
+	enqueue("Lunch", &lunch_2);
+	enqueue("Lunch", &lunch_3);
 
-	printf("Enqueue: %d\n", enqueue("Breakfast", &eggs));
-	printf("Enqueue: %d\n", enqueue("Breakfast", &bacon));
-	printf("Enqueue: %d\n", enqueue("Breakfast", &pancakes));
-	printf("Enqueue: %d\n", enqueue("Breakfast", &eggs));
-	printf("Enqueue: %d\n", enqueue("Breakfast", &bacon));
+	mealTicket meal_1 = {.ticketNum = -2, .dish = "Spaghetti"};
+	mealTicket meal_2 = {.ticketNum = -2, .dish = "Calzone"};
+	mealTicket meal_3 = {.ticketNum = -2, .dish = "Lasagna"};
+	enqueue("Dinner", &meal_1);
+	enqueue("Dinner", &meal_1);
+	enqueue("Dinner", &meal_1);
 
-	printf("%s: %s,\n", bkfst.name, bkfst.buffer[0].dish);
-	printf("%s: %s,\n", bkfst.name, bkfst.buffer[1].dish);
-	printf("%s: %s,\n", bkfst.name, bkfst.buffer[2].dish);
-	printf("%s: %s,\n", bkfst.name, bkfst.buffer[3].dish);
+	mealTicket drink_1 = {.ticketNum = -2, .dish = "Gin and Tonic"};
+	mealTicket drink_2 = {.ticketNum = -2, .dish = "Jack and Coke"};
+	mealTicket drink_3 = {.ticketNum = -2, .dish = "Tequila"};
+	enqueue("Bar", &drink_1);
+	enqueue("Bar", &drink_2);
+	enqueue("Bar", &drink_3);
+
+	int i = 1;
+	while(i < 5)
+	{
+		for(int j = 0; j < 4; j++)
+		{
+			mealTicket test;
+			char *nm = registry[j]->name;
+			dequeue(nm, i, &test);
+			printf("Queue: %s - Ticket Number: %d - Dish: %s\n", nm, test.ticketNum, test.dish);
+		}
+		i++;
+	}
+	mealTicket test;
+	if(dequeue(registry[0]->name, registry[0]->head+1, &test))
+	{
+		printf("Test Case: A - Result: Success\n");
+	}
+	else
+	{
+		printf("Test Case: A - Result: Fail\n");
+	}
+
+	enqueue("Breakfast", &breakfast_1);
+	enqueue("Breakfast", &breakfast_2);
+	enqueue("Breakfast", &breakfast_3);
+
+	if(dequeue(registry[0]->name, registry[0]->head+1, &test))
+	{
+		printf("Test Case: B - Result: Success\n");
+	}
+	else
+	{
+		printf("Test Case: B - Result: Fail\n");
+	}
+
+	enqueue("Breakfast", &breakfast_1);
+
+	if(enqueue("Breakfast", &breakfast_1))
+	{
+		printf("Test Case: C - Result: Success\n");
+	}
+	else
+	{
+		printf("Test Case: C - Result: Fail\n");
+	}
+
+	if(enqueue("Lunch", &lunch_1))
+	{
+		printf("Test Case: D - Result: Success\n");
+	}
+	else
+	{
+		printf("Test Case: D - Result: Fail\n");
+	}
+	free(registry[0]->buffer);
+	free(registry[1]->buffer);
+	free(registry[2]->buffer);
+	free(registry[3]->buffer);
 
 }
