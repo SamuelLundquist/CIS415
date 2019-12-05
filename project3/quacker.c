@@ -72,7 +72,7 @@ int dequeue(char *TQ_ID, int entryNum)
 		int h = queue->head;
 		int t = queue->tail;
 		int entry = queue->buffer[h].entryNum;
-		if(entry >= 0 && entry == entryNum)
+		if(entry > 0 && entry == entryNum)
 		{
 			queue->buffer[t].entryNum = 0;
 			queue->buffer[h].entryNum = -1;
@@ -103,7 +103,7 @@ int main()
 	enqueue("Nature", &tree);
 	enqueue("Nature", &tree);
 	enqueue("Nature", &tree);
-	for(int i = 0; i < 5; i++)
+	for(int i = 0; i < 6; i++)
 	{
 		printf("%s:%d - %s\n", registry[0]->topic, registry[0]->entries,
 			registry[0]->buffer[i].photoURL);
