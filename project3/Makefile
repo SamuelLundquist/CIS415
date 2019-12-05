@@ -1,0 +1,16 @@
+CC = gcc
+CFLAGS = -Wall -std=gnu11
+DEPS = command.h
+OBJ = quacker.o
+
+%.o: %.c $(DEPS)
+	$(CC) -o $@ $< $(CFLAGS)
+
+server: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
+
+run:
+	./server
+
+clean:
+	rm $(OBJ) server
