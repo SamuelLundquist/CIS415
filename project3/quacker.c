@@ -19,6 +19,9 @@
 /******************************* Globals **************************************/
 int ENTRYVAL = 1;
 static TQ *registry[MAXTOPICS];
+pthread_mutex_t meowtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_meowtx = PTHREAD_COND_INITIALIZER;
+int globalFlag = 1;
 /******************************************************************************/
 
 /****************************** Functions *************************************/
@@ -129,6 +132,10 @@ void *publisher(void *args)
 
 	printf("Publisher: %d\n", id);
 
+	pthread_mutex_lock(&meowtx);
+	pthread_cond_wait(&cond_meowtx, &meowtx);
+	pthread_mutex_unlock(&meowtx);
+
 	int i = 0;
 	while(TQ_LIST[i] != NULL)
 	{
@@ -146,8 +153,7 @@ void *publisher(void *args)
 			sched_yield();
 		}
 	}
-
-	sleep(2);
+	return NULL;
 }
 
 void *subscriber(void *args)
@@ -161,18 +167,26 @@ void *subscriber(void *args)
 	entry = ((subArgs *) args)->TE;
 	TQ_ID = ((subArgs *) args)->topic;
 	printf("Subscriber: %d\n", id);
-	if((res = getEntry(TQ_ID, lastEntry, entry)) > 0)
+
+	pthread_mutex_lock(&meowtx);
+	pthread_cond_wait(&cond_meowtx, &meowtx);
+	pthread_mutex_unlock(&meowtx);
+	while(globalFlag)
 	{
-		lastEntry = (res == 1) ? lastEntry+1 : res;
-		printf("S:%d got entry: %d\n", id, entry->entryNum);
-		sched_yield();
+		if((res = getEntry(TQ_ID, lastEntry, entry)) > 0)
+		{
+			lastEntry = (res == 1) ? lastEntry+1 : res;
+			printf("S:%d got entry: %d\n", id, entry->entryNum);
+			sched_yield();
+		}
+		else
+		{
+			printf("S:%d could not get entry\n", id);
+			sched_yield();
+			sleep(1);
+		}
 	}
-	else
-	{
-		printf("S:%d could not get entry\n", id);
-		sched_yield();
-		sleep(1);
-	}
+	return NULL;
 }
 /******************************************************************************/
 
@@ -212,16 +226,16 @@ int main()
 	queues[2] = "Gaming";
 	queues[3] = NULL;
 
-
+	/* Init Arrays for Publishers and Subscribers */
 	pthread_t pubs[MAXPUBS];
 	pubArgs pubargs[MAXPUBS];
-
 	pthread_t subs[MAXSUBS];
 	subArgs subargs[MAXSUBS];
 
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 
+	/* Initialize Arguments for Publishers */
 	for(i = 0; i < MAXPUBS; i++)
 	{
 		pubArgs p;
@@ -231,6 +245,7 @@ int main()
 		pubargs[i] = p;
 	}
 
+	/* Initialize Arguments for Subscribers */
 	for(i = 0; i < MAXPUBS; i++)
 	{
 		subArgs s;
@@ -250,6 +265,17 @@ int main()
 		pthread_create(&subs[i], &attr, subscriber, (void *) &(subargs[i]));
 	}
 
+	/* pthread cond boadcast to start all threads, waits for them to start */
+	for(i = 0; i < 5; i++)
+	{
+		sleep(1);
+		printf(".\n");
+	}
+	pthread_mutex_lock(&meowtx);
+	pthread_cond_broadcast(&cond_meowtx);
+	pthread_mutex_unlock(&meowtx);
+	sleep(5);
+	globalFlag = 0;
 	/* Join Thread Pools */
 	for(i = 0; i < MAXPUBS; i++)
 	{
