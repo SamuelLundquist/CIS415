@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include "commands.h"
 /******************************************************************************/
 
@@ -47,6 +48,8 @@ int enqueue(char *TQ_ID, topicEntry *TE)
 
 	if((queue = findQueue(TQ_ID)) != NULL)
 	{
+		pthread_mutex_t mtx = queue->mutex;
+		pthread_mutex_lock(&mtx);
 		int t = queue->tail;
 		if(queue->buffer[t].entryNum != -1)
 		{
@@ -58,6 +61,7 @@ int enqueue(char *TQ_ID, topicEntry *TE)
 			queue->tail = t % (queue->length+1);
 			ret = 1;
 		}
+		pthread_mutex_unlock(&mtx);
 	}
 	return ret;
 }
@@ -69,6 +73,8 @@ int dequeue(char *TQ_ID, int entryNum)
 
 	if((queue = findQueue(TQ_ID)) != NULL)
 	{
+		pthread_mutex_t mtx = queue->mutex;
+		pthread_mutex_lock(&mtx);
 		int h = queue->head;
 		int t = queue->tail;
 		int entry = queue->buffer[h].entryNum;
@@ -80,33 +86,123 @@ int dequeue(char *TQ_ID, int entryNum)
 			queue->head = h % queue->length;
 			ret = 1;
 		}
+		pthread_mutex_unlock(&mtx);
 	}
 	return ret;
 }
 
+int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE)
+{
+	TQ *queue;
+	int ret = 0;
+
+	if((queue = findQueue(TQ_ID)) != NULL)
+	{
+		int i = queue->head;
+		int entry = queue->buffer[i].entryNum;
+		lastEntry++;
+		while(entry > 0)
+		{
+			if(entry >= lastEntry)
+			{
+				*TE = queue->buffer[i];
+				ret = (entry > lastEntry) ? entry : 1;
+				break;
+			}
+			i++;
+			entry = queue->buffer[i].entryNum;
+		}
+	}
+	return ret;
+}
+
+void *publisher(void *args)
+{
+	int id;
+	id = ((pubArgs *) args)->id;
+	printf("Publisher: %d\n", id);
+}
+
+void *subscriber(void *args)
+{
+	int id;
+	id = ((subArgs *) args)->id;
+	printf("Subscriber: %d\n", id);
+}
 /******************************************************************************/
 
 int main()
 {
+	int i;
+
+	/* Init Topic Queues */
 	TQ_DEF(topicQueue1, "Nature");
-	//TQ_DEF(topicQueue2, "Cityscapes");
-	//TQ_DEF(topicQueue3, "Gaming");
+	TQ_DEF(topicQueue2, "Cityscapes");
+	TQ_DEF(topicQueue3, "Gaming");
+	TQ_DEF(topicQueue4, "Anime");
+	TQ_DEF(topicQueue5, "Art");
 
+	/* Place Topic Queues In Registry */
 	registry[0] = &topicQueue1;
-	TE_DEF(tree, 1, "Tree", "Look at this tree");
-	printf("%d:%ld %s - %s\n", tree.pubID, tree.timeStamp.tv_sec,
-		tree.photoURL, tree.photoCaption);
+	registry[1] = &topicQueue2;
+	registry[2] = &topicQueue3;
+	registry[3] = &topicQueue4;
+	registry[4] = &topicQueue5;
 
-	enqueue("Nature", &tree);
-	enqueue("Nature", &tree);
-	enqueue("Nature", &tree);
-	enqueue("Nature", &tree);
-	enqueue("Nature", &tree);
-	enqueue("Nature", &tree);
-	for(int i = 0; i < 6; i++)
+	TE_DEF(tree, "url", "This is a tree");
+	TE_DEF(bush, "url", "This is a bush");
+	TE_DEF(hedge, "url", "This is a hedge");
+	topicEntry entries[] = { tree, bush, hedge };
+	char **queues;
+	queues = malloc(3 * sizeof(char*));
+	for(int x = 0; x < 3; x++)
 	{
-		printf("%s:%d - %s\n", registry[0]->topic, registry[0]->entries,
-			registry[0]->buffer[i].photoURL);
+		queues[x] = malloc(MAXNAME * sizeof(char));
+	}
+	queues[0] = "Nature";
+	queues[1] = "Nature";
+	queues[2] = "Nature";
+
+
+	pthread_t pubs[MAXPUBS];
+	pubArgs pubargs[MAXPUBS];
+	pthread_t subs[MAXSUBS];
+	subArgs subargs[MAXSUBS];
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+
+	topicEntry entry;
+
+	pubArgs pargs;
+	pargs.id = 0;
+	pargs.TE = entries;
+	pargs.topics = queues;
+	pubargs[0] = pargs;
+
+	subArgs sargs;
+	sargs.id = 0;
+	sargs.TE = &entry;
+	sargs.topic = "Nature";
+	subargs[0] = sargs;
+
+	/* Create Thread Pools */
+	for(i = 0; i < MAXPUBS; i++)
+	{
+		pthread_create(&pubs[i], &attr, publisher, (void *) &pubargs[i]);
+	}
+	for(i = 0; i < MAXSUBS; i++)
+	{
+		pthread_create(&subs[i], &attr, subscriber, (void *) &subargs[i]);
+	}
+
+	/* Join Thread Pools */
+	for(i = 0; i < MAXPUBS; i++)
+	{
+		pthread_join(pubs[i], NULL);
+	}
+	for(i = 0; i < MAXSUBS; i++)
+	{
+		pthread_join(subs[i], NULL);
 	}
 
 	atexit(exitStat);

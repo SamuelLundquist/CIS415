@@ -14,6 +14,8 @@
 #define MAXTOPICS 5
 #define MAXNAME 255
 #define MAXENTRIES 5
+#define MAXPUBS 1
+#define MAXSUBS 1
 /******************************************************************************/
 
 /******************************* Structs **************************************/
@@ -31,8 +33,23 @@ typedef struct{
 	int head, tail, entries;
 	const int length;
 	topicEntry * const buffer;
+	pthread_mutex_t mutex;
 }
 TQ;
+
+typedef struct{
+	int id;
+	topicEntry *TE;
+	char **topics;
+}
+pubArgs;
+
+typedef struct{
+	int id;
+	topicEntry *TE;
+	char *topic;
+}
+subArgs;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
@@ -44,16 +61,17 @@ TQ;
 		.tail = 0,                                                       \
 		.entries = 0,                                                    \
 		.length = MAXENTRIES,                                            \
-		.buffer = var##_buf                                              \
+		.buffer = var##_buf,                                             \
+		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
 	}
 
-#define TE_DEF(var, pub_id, photo_url, photo_caption)                    \
+#define TE_DEF(var, photo_url, photo_caption)                            \
 	struct timeval var##_time_stamp;                                     \
 	gettimeofday(&var##_time_stamp, NULL);                               \
 	topicEntry var = {                                                   \
 		.entryNum = 0,                                                   \
 		.timeStamp = var##_time_stamp,                                   \
-		.pubID = pub_id,                                                 \
+		.pubID = 0,                                                      \
 		.photoURL = photo_url,                                           \
 		.photoCaption = photo_caption                                    \
 	}
@@ -66,6 +84,10 @@ void exitStat(void);
 TQ *findQueue(char *TQ_ID);
 
 int enqueue(char *TQ_ID, topicEntry *TE);
+
+int dequeue(char *TQ_ID, int entryNum);
+
+int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE);
 
 /******************************************************************************/
 #endif
