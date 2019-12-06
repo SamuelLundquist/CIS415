@@ -14,8 +14,8 @@
 #define MAXTOPICS 5
 #define MAXNAME 255
 #define MAXENTRIES 5
-#define MAXPUBS 1
-#define MAXSUBS 1
+#define MAXPUBS 4
+#define MAXSUBS 3
 /******************************************************************************/
 
 /******************************* Structs **************************************/
@@ -88,6 +88,10 @@ int enqueue(char *TQ_ID, topicEntry *TE);
 int dequeue(char *TQ_ID, int entryNum);
 
 int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE);
+
+void *publisher(void *args);
+
+void *subscriber(void *args);
 
 /******************************************************************************/
 #endif
