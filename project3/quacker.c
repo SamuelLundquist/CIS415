@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/time.h>
+#include <time.h>
 #include <pthread.h>
 #include "commands.h"
 /******************************************************************************/
@@ -22,6 +22,7 @@ static TQ *registry[MAXTOPICS];
 pthread_mutex_t meowtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_meowtx = PTHREAD_COND_INITIALIZER;
 int globalFlag = 1;
+int cleanFlag = 1;
 /******************************************************************************/
 
 /****************************** Functions *************************************/
@@ -58,6 +59,7 @@ int enqueue(char *TQ_ID, topicEntry *TE)
 		{
 			TE->entryNum = ENTRYVAL;
 			ENTRYVAL++;
+			TE->t = clock();
 			queue->buffer[t] = *TE;
 			queue->entries++;
 			t++;
@@ -69,28 +71,30 @@ int enqueue(char *TQ_ID, topicEntry *TE)
 	return ret;
 }
 
-int dequeue(char *TQ_ID, int entryNum)
+int dequeue(char *TQ_ID)
 {
 	TQ *queue;
 	int ret = 0;
 
 	if((queue = findQueue(TQ_ID)) != NULL)
 	{
+		clock_t newTime = clock();
 		pthread_mutex_t mtx = queue->mutex;
 		pthread_mutex_lock(&mtx);
 		int h = queue->head;
-		int t = queue->tail;
-		int entry = queue->buffer[h].entryNum;
-		if(entry > 0 && entry == entryNum)
+		clock_t time = queue->buffer[h].t;
+		newTime = newTime - time;
+		double time_taken = ((double)newTime)/CLOCKS_PER_SEC;
+		if(time_taken > 10.0 && queue->buffer[h].entryNum > 0)
 		{
-			queue->buffer[t].entryNum = 0;
+			printf("Dequeueing item\n");
+			queue->buffer[queue->tail].entryNum = 0;
 			queue->buffer[h].entryNum = -1;
 			h++;
 			queue->head = h % queue->length;
 			ret = 1;
 		}
 		pthread_mutex_unlock(&mtx);
-		//sched_yield(); put this in the dequeue function for cleanup thread
 	}
 	return ret;
 }
@@ -188,12 +192,46 @@ void *subscriber(void *args)
 	}
 	return NULL;
 }
+
+void *cleanup()
+{
+	printf("Cleanup Thread Initialized.\n");
+
+	pthread_mutex_lock(&meowtx);
+	pthread_cond_wait(&cond_meowtx, &meowtx);
+	pthread_mutex_unlock(&meowtx);
+
+	while(globalFlag)
+	{
+		if(cleanFlag)
+		{
+			for(int i = 0; i < MAXTOPICS; i++)
+			{
+				char *TQ_ID = registry[i]->topic;
+				printf("Cleanup: %s\n", TQ_ID);
+				dequeue(TQ_ID);
+			}
+			cleanFlag = 0;
+		}
+		sched_yield();
+	}
+	return NULL;
+}
+
+void alarmHandler(int signal)
+{
+	cleanFlag = 1;
+	alarm(2);
+}
 /******************************************************************************/
 
 int main()
 {
-	//BROADCAST TO THREAD TO GET THOSE DAMN THREADS TO START DOIN SHIT
 	int i;
+
+	/* Signal for cleanup thread */
+	signal(SIGALRM, alarmHandler);
+	alarm(2);
 
 	/* Init Topic Queues */
 	TQ_DEF(topicQueue1, "Nature");
@@ -231,6 +269,7 @@ int main()
 	pubArgs pubargs[MAXPUBS];
 	pthread_t subs[MAXSUBS];
 	subArgs subargs[MAXSUBS];
+	pthread_t cleanupThread;
 
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -264,18 +303,25 @@ int main()
 	{
 		pthread_create(&subs[i], &attr, subscriber, (void *) &(subargs[i]));
 	}
+	pthread_create(&cleanupThread, &attr, cleanup, NULL);
 
+	/* Start Menu */
+	system("clear");
+	printf("Press any key to start...\n");
+	getchar();
+	system("clear");
+	free(queues);
 	/* pthread cond boadcast to start all threads, waits for them to start */
-	for(i = 0; i < 5; i++)
-	{
-		sleep(1);
-		printf(".\n");
-	}
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_broadcast(&cond_meowtx);
 	pthread_mutex_unlock(&meowtx);
-	sleep(5);
+	printf("Sleep 25\n");
+	for(i = 0; i < 25; i++)
+	{
+		sleep(1);
+	}
 	globalFlag = 0;
+
 	/* Join Thread Pools */
 	for(i = 0; i < MAXPUBS; i++)
 	{
@@ -285,7 +331,7 @@ int main()
 	{
 		pthread_join(subs[i], NULL);
 	}
-	free(queues);
+	pthread_join(cleanupThread, NULL);
 
 	atexit(exitStat);
 	return EXIT_SUCCESS;

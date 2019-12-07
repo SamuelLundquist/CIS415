@@ -21,7 +21,7 @@
 /******************************* Structs **************************************/
 typedef struct{
 	int entryNum;
-	struct timeval timeStamp;
+	clock_t t;
 	int pubID;
 	char photoURL[URLSIZE];
 	char photoCaption[CAPSIZE];
@@ -66,11 +66,8 @@ subArgs;
 	}
 
 #define TE_DEF(var, photo_url, photo_caption)                            \
-	struct timeval var##_time_stamp;                                     \
-	gettimeofday(&var##_time_stamp, NULL);                               \
 	topicEntry var = {                                                   \
 		.entryNum = 0,                                                   \
-		.timeStamp = var##_time_stamp,                                   \
 		.pubID = 0,                                                      \
 		.photoURL = photo_url,                                           \
 		.photoCaption = photo_caption                                    \
@@ -85,7 +82,7 @@ TQ *findQueue(char *TQ_ID);
 
 int enqueue(char *TQ_ID, topicEntry *TE);
 
-int dequeue(char *TQ_ID, int entryNum);
+int dequeue(char *TQ_ID);
 
 int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE);
 
