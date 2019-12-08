@@ -24,7 +24,12 @@ pthread_cond_t cond_meowtx = PTHREAD_COND_INITIALIZER;
 int globalFlag = 1;
 int cleanFlag = 1;
 int PROG_STAT = 0;
-unsigned int DELTA = 10.0;
+float DELTA = 10.0;
+pthread_t pubs[MAXPUBS];
+pthread_t subs[MAXSUBS];
+threadargs pubargs[MAXPUBS];
+threadargs subargs[MAXSUBS];
+pthread_attr_t attr;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
@@ -64,12 +69,8 @@ void menuStart(char* filename)
 
 void menuRun()
 {
-	system("clear");
-	printf("\n\t\t[--- INSTAQUACK ---] \n");
-	printf("-----------------------------------------------------------\n");
-	printf("\n\t Ready to begin\n");
-	printf("\n\t Press enter to start threads.\n\n");
-	printf("-----------------------------------------------------------\n");
+	printf("\n-----------------------------------------------------------\n");
+	printf("\nReady to begin, press enter to start threads.\n");
 	getchar();
 	system("clear");
 	printf("\n\t\t[--- INSTAQUACK ---] \n");
@@ -134,14 +135,16 @@ int dequeue(char *TQ_ID)
 
 	if((queue = findQueue(TQ_ID)) != NULL)
 	{
-		clock_t newTime = clock();
 		pthread_mutex_t mtx = queue->mutex;
 		pthread_mutex_lock(&mtx);
+
 		int h = queue->head;
+		clock_t newTime = clock();
 		clock_t time = queue->buffer[h].t;
 		newTime = newTime - time;
 		double time_taken = ((double)newTime)/CLOCKS_PER_SEC;
-		if(time_taken > 10.0 && queue->buffer[h].entryNum > 0)
+
+		if(time_taken > DELTA && queue->buffer[h].entryNum > 0)
 		{
 			printf("Dequeueing item\n");
 			queue->buffer[queue->tail].entryNum = 0;
@@ -180,53 +183,79 @@ int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE)
 	return ret;
 }
 
-void cancelThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[])
+int makeThread(int type, int index, char *filename)
 {
-	int i, stat;
-	for(i = 0; i < numPubs; i++)
+	int s, res;
+	res = 0;
+	threadargs args = { .id = index+1 };
+	strncpy(args.filename, filename, sizeof(args.filename) - 1);
+	if(type == 1)
 	{
-		stat = pthread_cancel(p[i]);
-		if(stat != 0)
+		if(index > MAXPUBS)
 		{
-			ERROR_HANDLER("[ERROR] pthread cancel");
+			printf("[ERROR] Maximum publishers already reached\n");
+			res = 1;
+		}
+		else
+		{
+			pubargs[index] = args;
+			s = pthread_create(&pubs[index], &attr, publisher, &pubargs[index]);
+			if(s)
+			{
+				printf("[ERROR] Failed to create thread\n");
+				res = 1;
+			}
 		}
 	}
-	for(i = 0; i < numSubs; i++)
+	else if(type == 2)
 	{
-		stat = pthread_cancel(s[i]);
-		if(stat != 0)
+		if(index > MAXSUBS)
 		{
-			ERROR_HANDLER("[ERROR] pthread cancel");
+			printf("[ERROR] Maximum subscribers already reached\n");
+			res = 1;
+		}
+		else
+		{
+			subargs[index] = args;
+			s= pthread_create(&subs[index], &attr, subscriber, &subargs[index]);
+			if(s)
+			{
+				printf("[ERROR] Failed to create thread\n");
+				res = 1;
+			}
 		}
 	}
+	return res;
 }
 
 void joinThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[])
 {
-	int i;
+	int i, stat, id;
 	void *res;
 	for(i = 0; i < numPubs; i++)
 	{
-		pthread_join(p[i], &res);
-		if(res == PTHREAD_CANCELED)
+		id = pubargs[i].id;
+		stat = pthread_join(p[i], &res);
+		if(stat != 0)
 		{
-			printf("Canceled publisher thread.\n");
+			ERROR_HANDLER("[ERROR] pthread join");
 		}
 		else
 		{
-			printf("Publisher thread terminated normally.\n");
+			printf("Publisher thread %d terminated.\n", id);
 		}
 	}
 	for(i = 0; i < numSubs; i++)
 	{
-		pthread_join(s[i], &res);
-		if(res == PTHREAD_CANCELED)
+		id = subargs[i].id;
+		stat = pthread_join(s[i], &res);
+		if(stat != 0)
 		{
-			printf("Canceled subscriber thread.\n");
+			ERROR_HANDLER("[ERROR] pthread join");
 		}
 		else
 		{
-			printf("Subscriber thread terminated normally.\n");
+			printf("Subscriber thread %d terminated.\n", id);
 		}
 	}
 }
@@ -339,19 +368,13 @@ int main(int argc, char *argv[])
 	size_t len = 0;
 	int numPubs = 0;
 	int numSubs = 0;
+	int numTopics = 0;
 
 	if(checkArgv(argv))
 	{
 		ERROR_HANDLER("[ERROR] Invalid Arguments\n");
 	}
 	atexit(exitStat);
-
-	/* Init Arrays for Publishers and Subscribers */
-	pthread_t pubs[MAXPUBS];
-	pthread_t subs[MAXSUBS];
-	threadargs pubargs[MAXPUBS];
-	threadargs subargs[MAXSUBS];
-	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 
 	/* Start Menu */
@@ -363,71 +386,147 @@ int main(int argc, char *argv[])
 	{
 		ERROR_HANDLER("[ERROR] Failed to open file.\n");
 	}
-	while(fileptr != NULL)
+	while(fileptr != NULL && PROG_STAT == 0)
 	{
 		char *line = NULL;
 		char command[16];
 		getline(&line, &len, fileptr);
-		sscanf(line, "%s", command);
-
+		sscanf(line, "%15s", command);
+		//usleep(250000);
 		if(strcmp(command, "create") == 0)
 		{
-
+			int id = 0;
+			int len = 0;
+			char name[128] = "";
+			sscanf(line, "create topic %d \"%127[^\"]\" %d", &id, name, &len);
+			if(id <= 0 || len <= 0 || strcmp(name, "") == 0)
+			{
+				printf("[ERROR] Couldn't create topic.\n");
+				PROG_STAT = 1;
+			}
+			else
+			{
+				/*
+				TQ_DEF(tq, id, len);
+				strncpy(tq.topic, name, sizeof(tq.topic) - 1);
+				registry[numTopics] = tq;
+				numTopics++;
+				*/
+			}
 		}
 		else if(strcmp(command, "query") == 0)
 		{
-
+			char var[64];
+			int i;
+			sscanf(line, "query %63s", var);
+			if(strcmp(var, "publishers") == 0)
+			{
+				for(i = 0; i < numPubs; i++)
+				{
+					threadargs args = pubargs[i];
+					printf("Subscriber: %d File: %s\n", args.id, args.filename);
+				}
+			}
+			else if(strcmp(var, "subscribers") == 0)
+			{
+				for(i = 0; i < numSubs; i++)
+				{
+					threadargs args = subargs[i];
+					printf("Subscriber: %d File: %s\n", args.id, args.filename);
+				}
+			}
+			else if(strcmp(var, "topics") == 0)
+			{
+				for(i = 0; i < numTopics; i++)
+				{
+					TQ *tq = registry[i];
+					printf("Topic: %d Length: %d\n", tq->id, tq->length);
+				}
+			}
+			else
+			{
+				printf("[ERROR] Unrecognized item to query: %s\n", var);
+				PROG_STAT = 1;
+			}
 		}
 		else if(strcmp(command, "add") == 0)
 		{
-
+			char var[64];
+			char filename[128];
+			int res = 0;
+			sscanf(line, "add %63s \"%127[^\"]\"", var, filename);
+			if(strcmp(var, "publisher") == 0)
+			{
+				res = makeThread(1, numPubs, filename);
+				if(res == 0)
+				{
+					numPubs++;
+				}
+			}
+			else if(strcmp(var, "subscriber") == 0)
+			{
+				res = makeThread(2, numSubs, filename);
+				if(res == 0)
+				{
+					numSubs++;
+				}
+			}
+			else
+			{
+				printf("[ERROR] Unrecognized item to add: %s\n", var);
+				res = 1;
+			}
+			PROG_STAT = res;
 		}
 		else if(strcmp(command, "delta") == 0)
 		{
-			unsigned int d;
-			sscanf(line, "%*s %d", d);
-			DELTA = d;
+			float d = 0;
+			sscanf(line, "delta %f", &d);
+			if(d > 0)
+			{
+				printf("Delta value set to: %f\n", d);
+				DELTA = d;
+			}
+			else
+			{
+				printf("[ERROR] Invalid delta value\n");
+			}
 		}
 		else if(strcmp(command, "start") == 0)
 		{
-			/* Close file and Reset File Pointer */
-			fclose(fileptr);
-			fileptr = NULL;
-
 			/* Init Cleanup Thread and Alarm */
 			pthread_t cleanupThread;
 			pthread_create(&cleanupThread, &attr, cleanup, NULL);
 			signal(SIGALRM, alarmHandler);
 			alarm(2);
+			usleep(200);
 
-			/* Display Menu Before Sending Broadcast Condition to Threads to Start */
+			/* Display Menu Before Sending Broadcast Condition to Threads */
 			menuRun();
 
-			/* pthread cond boadcast to start all threads, waits for them to start */
+			/* pthread cond boadcast to start all threads */
 			pthread_mutex_lock(&meowtx);
 			pthread_cond_broadcast(&cond_meowtx);
 			pthread_mutex_unlock(&meowtx);
+			break;
 		}
 		else
 		{
 			/* Print Error */
 			char command[32];
-			sscanf(line, "%32s", &command);
+			sscanf(line, "%s", command);
 			printf("[ERROR] Unrecognized Command: %s\n", command);
-
-			/* Close file and Reset File Pointer */
-			fclose(fileptr);
-			fileptr = NULL;
-
-			/* Cancel Threads and Set Program Status to EXIT_FAILURE */
-			cancelThreads(numPubs, numSubs, pubs, subs);
 			PROG_STAT = 1;
 		}
 		free(line);
 	}
+	fclose(fileptr);
 
-	joinThreads(numPubs, numSubs, pubs, subs);
-	globalFlag = 0;
+	if(PROG_STAT == 0)
+	{
+		joinThreads(numPubs, numSubs, pubs, subs);
+		globalFlag = 0;
+	}
 
 	return PROG_STAT;
 }

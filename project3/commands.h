@@ -30,7 +30,7 @@ topicEntry;
 
 typedef struct{
 	char topic[MAXNAME];
-	int head, tail, entries;
+	int id, head, tail, entries;
 	const int length;
 	topicEntry * const buffer;
 	pthread_mutex_t mutex;
@@ -46,14 +46,14 @@ threadargs;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
-#define TQ_DEF(var, id)                                                  \
+#define TQ_DEF(var, id, len)                                             \
 	topicEntry var##_buf[MAXENTRIES + 1] = {[MAXENTRIES].entryNum = -1}; \
 	TQ var = {                                                           \
-		.topic = id,                                                     \
+		.id = id,                                                        \
 		.head = 0,                                                       \
 		.tail = 0,                                                       \
 		.entries = 0,                                                    \
-		.length = MAXENTRIES,                                            \
+		.length = len,                                                   \
 		.buffer = var##_buf,                                             \
 		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
 	}
@@ -64,12 +64,6 @@ threadargs;
 		.pubID = 0,                                                      \
 		.photoURL = photo_url,                                           \
 		.photoCaption = photo_caption                                    \
-	}
-
-#define ARGS_DEF(var, id, filename)                                      \
-	threadargs arg = {                                                   \
-		.id = id,                                                        \
-		.filename = filename                                             \
 	}
 /******************************************************************************/
 
