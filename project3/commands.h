@@ -14,7 +14,7 @@
 #define MAXTOPICS 5
 #define MAXNAME 255
 #define MAXENTRIES 5
-#define MAXPUBS 4
+#define MAXPUBS 3
 #define MAXSUBS 3
 /******************************************************************************/
 
@@ -39,17 +39,10 @@ TQ;
 
 typedef struct{
 	int id;
-	topicEntry *TE;
-	char **topics;
+	char filename[MAXNAME];
 }
-pubArgs;
+threadargs;
 
-typedef struct{
-	int id;
-	topicEntry *TE;
-	char *topic;
-}
-subArgs;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
@@ -71,6 +64,12 @@ subArgs;
 		.pubID = 0,                                                      \
 		.photoURL = photo_url,                                           \
 		.photoCaption = photo_caption                                    \
+	}
+
+#define ARGS_DEF(var, id, filename)                                      \
+	threadargs arg = {                                                   \
+		.id = id,                                                        \
+		.filename = filename                                             \
 	}
 /******************************************************************************/
 
