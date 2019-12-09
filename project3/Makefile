@@ -10,7 +10,7 @@ server: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 run:
-	./server
+	./server config.txt
 
 clean:
 	rm $(OBJ) server

@@ -46,16 +46,6 @@ threadargs;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
-#define TQ_BLANK(var)                                                    \
-	TQ var = {                                                           \
-		.id = 0,                                                         \
-		.head = 0,                                                       \
-		.tail = 0,                                                       \
-		.entries = 0,                                                    \
-		.length = 0,                                                     \
-		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
-	}
-
 #define TQ_DEF(var, id, len)                                             \
 	TQ var = {                                                           \
 		.id = id,                                                        \

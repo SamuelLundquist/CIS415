@@ -152,18 +152,19 @@ int dequeue(int id)
 		pthread_mutex_lock(&mtx);
 
 		int h = queue->head;
+		int t = queue->tail;
 		clock_t newTime = clock();
 		clock_t time = queue->buffer[h].t;
 		newTime = newTime - time;
 		double time_taken = ((double)newTime)/CLOCKS_PER_SEC;
 
-		if(time_taken > DELTA && queue->buffer[h].entryNum > 0)
+		if(time_taken > DELTA && h != t)
 		{
-			printf("Dequeueing item\n");
+			printf("Dequeueing item: %s\n", queue->buffer[h].photoCaption);
 			queue->buffer[queue->tail].entryNum = 0;
 			queue->buffer[h].entryNum = -1;
 			h++;
-			queue->head = h % queue->length;
+			queue->head = h % (queue->length+1);
 			ret = 1;
 		}
 		pthread_mutex_unlock(&mtx);
@@ -247,11 +248,10 @@ int makeThread(int type, int index, char *filename)
 void joinThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[])
 {
 	int i, stat, id;
-	void *res;
 	for(i = 0; i < numPubs; i++)
 	{
 		id = pubargs[i].id;
-		stat = pthread_join(p[i], &res);
+		stat = pthread_join(p[i], NULL);
 		if(stat != 0)
 		{
 			ERROR_HANDLER("[ERROR] pthread join");
@@ -264,7 +264,7 @@ void joinThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[])
 	for(i = 0; i < numSubs; i++)
 	{
 		id = subargs[i].id;
-		stat = pthread_join(s[i], &res);
+		stat = pthread_join(s[i], NULL);
 		if(stat != 0)
 		{
 			ERROR_HANDLER("[ERROR] pthread join");
@@ -282,6 +282,7 @@ void *publisher(void *args)
 	char *filename;
 	id = ((threadargs *) args)->id;
 	filename = ((threadargs *) args)->filename;
+	printf("Proxy thread %d - type: Publisher\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
@@ -305,13 +306,15 @@ void *publisher(void *args)
 
 		if(strcmp(command, "put") == 0)
 		{
+			printf("Proxy thread %d - type: Publisher - "
+				"Executed command: put\n", id);
 			int topicID;
 			char url[255];
 			char capt[255];
 			sscanf(line,"put %d \"%254[^\"]\" \"%254[^\"]\"",&topicID,url,capt);
 			if(topicID <= 0 || strcmp(url, "") == 0 || strcmp(capt, "") == 0)
 			{
-				printf("[ERROR] Invalid arguments for put command.\n");
+				printf("[ERROR] P:%d Invalid arguments for put command.\n", id);
 				PROG_STAT = 1;
 			}
 			else
@@ -320,11 +323,7 @@ void *publisher(void *args)
 				ENTRYVAL++;
 				strncpy(entry.photoURL, url, sizeof(entry.photoURL) - 1);
 				strncpy(entry.photoCaption, capt, sizeof(entry.photoCaption)-1);
-				if(enqueue(topicID, &entry))
-				{
-					printf("P:%d Enqueued: %s\n", id, entry.photoCaption);
-				}
-				else
+				if(enqueue(topicID, &entry) == 0)
 				{
 					printf("[ERROR] P:%D Enqueue failed: %s\n", id, capt);
 				}
@@ -332,6 +331,8 @@ void *publisher(void *args)
 		}
 		else if(strcmp(command, "sleep") == 0)
 		{
+			printf("Proxy thread %d - type: Publisher - "
+				"Executed command: sleep\n", id);
 			int time;
 			sscanf(line, "sleep %d", &time);
 			if(time >= 0)
@@ -346,7 +347,8 @@ void *publisher(void *args)
 		}
 		else if(strcmp(command, "stop") == 0)
 		{
-			printf("Stopping publisher thread %d\n", id);
+			printf("Proxy thread %d - type: Publisher - "
+				"Executed command: stop\n", id);
 			free(line);
 			break;
 		}
@@ -371,6 +373,7 @@ void *subscriber(void *args)
 	char *filename;
 	id = ((threadargs *) args)->id;
 	filename = ((threadargs *) args)->filename;
+	printf("Proxy thread %d - type: Subscriber\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
@@ -393,6 +396,8 @@ void *subscriber(void *args)
 
 		if(strcmp(command, "get") == 0)
 		{
+			printf("Proxy thread %d - type: Subscriber - "
+				"Executed command: get\n", id);
 			int topicQueueID;
 			sscanf(line, "get %d", &topicQueueID);
 			int res;
@@ -401,12 +406,13 @@ void *subscriber(void *args)
 			while((res = getEntry(topicQueueID, lastEntry, &entry)) > 0)
 			{
 				lastEntry = (res == 1) ? lastEntry+1 : res;
-				printf("S:%d got entry: %d\n", id, entry.entryNum);
 				sched_yield();
 			}
 		}
 		else if(strcmp(command, "sleep") == 0)
 		{
+			printf("Proxy thread %d - type: Subscriber - "
+				"Executed command: sleep\n", id);
 			int time;
 			sscanf(line, "sleep %d", &time);
 			if(time >= 0)
@@ -421,7 +427,8 @@ void *subscriber(void *args)
 		}
 		else if(strcmp(command, "stop") == 0)
 		{
-			printf("Stopping subscriber thread %d\n", id);
+			printf("Proxy thread %d - type: Subscriber - "
+				"Executed command: stop\n", id);
 			free(line);
 			break;
 		}
@@ -455,7 +462,8 @@ void *cleanup()
 			for(int i = 0; i < NUMTOPICS; i++)
 			{
 				int id = registry[i].id;
-				printf("Cleanup: %d\n", id);
+				printf("Cleanup thread - Executed command: "
+					"dequeue on topic queue %d\n", id);
 				dequeue(id);
 			}
 			cleanFlag = 0;
@@ -485,6 +493,7 @@ int main(int argc, char *argv[])
 	}
 	atexit(exitStat);
 	pthread_attr_init(&attr);
+	pthread_t cleanupThread;
 
 	/* Start Menu */
 	menuStart(argv[1]);
@@ -603,7 +612,6 @@ int main(int argc, char *argv[])
 		else if(strcmp(command, "start") == 0)
 		{
 			/* Init Cleanup Thread and Alarm */
-			pthread_t cleanupThread;
 			pthread_create(&cleanupThread, &attr, cleanup, NULL);
 			signal(SIGALRM, alarmHandler);
 			alarm(2);
@@ -631,15 +639,28 @@ int main(int argc, char *argv[])
 	}
 	fclose(fileptr);
 
+	/* Properly joins all threads/cleans up memory leaks. If there was an error,
+	then the program is forced to quit without worrying about this. Implemented
+	to prevent the program from hanging if there was an issue with running the
+	commands input from file */
 	if(PROG_STAT == 0)
 	{
 		joinThreads(numPubs, numSubs, pubs, subs);
-		globalFlag = 0;
-	}
 
-	for(int i = 0; i < NUMTOPICS; i++)
-	{
-		free(registry[i].buffer);
+		globalFlag = 0;
+		int stat = pthread_join(cleanupThread, NULL);
+		if(stat != 0)
+		{
+			ERROR_HANDLER("[ERROR] pthread join on cleanup thread");
+		}
+		else
+		{
+			printf("Cleanup thread terminated.\n");
+		}
+		for(int i = 0; i < NUMTOPICS; i++)
+		{
+			free(registry[i].buffer);
+		}
 	}
 
 	return PROG_STAT;
