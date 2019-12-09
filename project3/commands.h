@@ -11,11 +11,11 @@
 /****************************** Constants *************************************/
 #define URLSIZE 255
 #define CAPSIZE 255
-#define MAXTOPICS 5
+#define MAXTOPICS 10
 #define MAXNAME 255
-#define MAXENTRIES 5
-#define MAXPUBS 3
-#define MAXSUBS 3
+#define MAXENTRIES 15
+#define MAXPUBS 5
+#define MAXSUBS 5
 /******************************************************************************/
 
 /******************************* Structs **************************************/
@@ -66,9 +66,9 @@ threadargs;
 		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
 	}
 
-#define TE_DEF(var, ENTRYVAL, id)                                        \
+#define TE_DEF(var, num, id)                                             \
 	topicEntry var = {                                                   \
-		.entryNum = ENTRYVAL,                                            \
+		.entryNum = num,                                                 \
 		.pubID = id,                                                     \
 	}
 

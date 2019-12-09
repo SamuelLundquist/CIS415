@@ -198,23 +198,7 @@ int getEntry(int id, int lastEntry, topicEntry *TE)
 	}
 	return ret;
 }
-/*
-TQ *makeTopic(int index, int id, int length, char *name)
-{
-	printf("MAKING TOPIC\n");
-	if(index < MAXTOPICS)
-	{
-		TQ_DEF(tq, id, length);
-		strncpy(tq.topic, name, sizeof(tq.topic) - 1);
-		return &tq;
-	}
-	else
-	{
-		printf("[ERROR] Topic limit already reached.\n");
-		return NULL;
-	}
-}
-*/
+
 int makeThread(int type, int index, char *filename)
 {
 	int s, res;
@@ -298,7 +282,6 @@ void *publisher(void *args)
 	char *filename;
 	id = ((threadargs *) args)->id;
 	filename = ((threadargs *) args)->filename;
-	printf("Publisher: %d\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
@@ -388,7 +371,6 @@ void *subscriber(void *args)
 	char *filename;
 	id = ((threadargs *) args)->id;
 	filename = ((threadargs *) args)->filename;
-	printf("Subscriber: %d\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
@@ -415,11 +397,12 @@ void *subscriber(void *args)
 			sscanf(line, "get %d", &topicQueueID);
 			int res;
 			int lastEntry = 0;
-			topicEntry *entry = NULL;
-			while((res = getEntry(topicQueueID, lastEntry, entry)) > 0)
+			TE_DEF(entry, 0, 0);
+			while((res = getEntry(topicQueueID, lastEntry, &entry)) > 0)
 			{
 				lastEntry = (res == 1) ? lastEntry+1 : res;
-				printf("S:%d got entry: %d\n", id, entry->entryNum);
+				printf("S:%d got entry: %d\n", id, entry.entryNum);
+				sched_yield();
 			}
 		}
 		else if(strcmp(command, "sleep") == 0)
@@ -549,7 +532,7 @@ int main(int argc, char *argv[])
 				for(i = 0; i < numPubs; i++)
 				{
 					threadargs args = pubargs[i];
-					printf("Subscriber: %d File: %s\n", args.id, args.filename);
+					printf("Publisher: %d File: %s\n", args.id, args.filename);
 				}
 			}
 			else if(strcmp(var, "subscribers") == 0)
