@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
+#include <signal.h>
 #include "commands.h"
 /******************************************************************************/
 
@@ -325,7 +326,7 @@ void *publisher(void *args)
 				strncpy(entry.photoCaption, capt, sizeof(entry.photoCaption)-1);
 				if(enqueue(topicID, &entry) == 0)
 				{
-					printf("[ERROR] P:%D Enqueue failed: %s\n", id, capt);
+					printf("[ERROR] P:%d Enqueue failed: %s\n", id, capt);
 				}
 			}
 		}
