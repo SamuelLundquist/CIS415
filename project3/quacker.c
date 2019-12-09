@@ -54,7 +54,7 @@ void exitStat(void)
 	}
 }
 
-void menuStart(char* filename)
+void menuStart(char *filename)
 {
 	system("clear");
 	printf("\n\t\t[--- INSTAQUACK ---] \n");
@@ -88,20 +88,6 @@ int checkArgv(char *argv[])
 		ret = 1;
 	}
 	return ret;
-}
-
-TQ *findQueue(char *TQ_ID)
-{
-	TQ *queue;
-	for(int i = 0; i < NUMTOPICS; i++)
-	{
-		queue = &registry[i];
-		if(strcmp(queue->topic, TQ_ID) == 0)
-		{
-			return queue;
-		}
-	}
-	return NULL;
 }
 
 TQ *findQueueFromID(int id)
@@ -616,7 +602,7 @@ int main(int argc, char *argv[])
 			pthread_create(&cleanupThread, &attr, cleanup, NULL);
 			signal(SIGALRM, alarmHandler);
 			alarm(2);
-			usleep(200);
+			usleep(500);
 
 			/* Display Menu Before Sending Broadcast Condition to Threads */
 			menuRun();

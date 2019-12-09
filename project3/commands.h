@@ -68,7 +68,13 @@ threadargs;
 
 void exitStat(void);
 
-TQ *findQueue(char *TQ_ID);
+void menuStart(char *filename);
+
+void menuRun();
+
+int checkArgv(char *argv[]);
+
+TQ *findQueueFromID(int id);
 
 int enqueue(int id, topicEntry *TE);
 
@@ -76,9 +82,17 @@ int dequeue(int id);
 
 int getEntry(int id, int lastEntry, topicEntry *TE);
 
+int makeThread(int type, int index, char *filename);
+
+void joinThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[]);
+
 void *publisher(void *args);
 
 void *subscriber(void *args);
+
+void *cleanup();
+
+void alarmHandler(int signal);
 
 /******************************************************************************/
 #endif
