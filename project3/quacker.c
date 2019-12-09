@@ -18,12 +18,13 @@
 
 /******************************* Globals **************************************/
 int ENTRYVAL = 1;
-static TQ *registry[MAXTOPICS];
+static TQ registry[MAXTOPICS];
 pthread_mutex_t meowtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_meowtx = PTHREAD_COND_INITIALIZER;
 int globalFlag = 1;
 int cleanFlag = 1;
-int PROG_STAT = 0;
+static int PROG_STAT = 0;
+static int NUMTOPICS = 0;
 float DELTA = 10.0;
 pthread_t pubs[MAXPUBS];
 pthread_t subs[MAXSUBS];
@@ -34,7 +35,7 @@ pthread_attr_t attr;
 
 /******************************* Macros ***************************************/
 #define ERROR_HANDLER(message)                                             \
-	do { PROG_STAT = 1; printf(message); exit(PROG_STAT);  \
+	do { PROG_STAT = 1; printf(message); exit(PROG_STAT);                  \
 	} while(0)
 /******************************************************************************/
 
@@ -91,9 +92,9 @@ int checkArgv(char *argv[])
 TQ *findQueue(char *TQ_ID)
 {
 	TQ *queue;
-	for(int i = 0; i < MAXTOPICS; i++)
+	for(int i = 0; i < NUMTOPICS; i++)
 	{
-		queue = registry[i];
+		queue = &registry[i];
 		if(strcmp(queue->topic, TQ_ID) == 0)
 		{
 			return queue;
@@ -102,20 +103,32 @@ TQ *findQueue(char *TQ_ID)
 	return NULL;
 }
 
-int enqueue(char *TQ_ID, topicEntry *TE)
+TQ *findQueueFromID(int id)
+{
+	TQ *queue;
+	for(int i = 0; i < NUMTOPICS; i++)
+	{
+		queue = &registry[i];
+		if(queue->id == id)
+		{
+			return queue;
+		}
+	}
+	return NULL;
+}
+
+int enqueue(int id, topicEntry *TE)
 {
 	TQ *queue;
 	int ret = 0;
 
-	if((queue = findQueue(TQ_ID)) != NULL)
+	if((queue = findQueueFromID(id)) != NULL)
 	{
 		pthread_mutex_t mtx = queue->mutex;
 		pthread_mutex_lock(&mtx);
 		int t = queue->tail;
 		if(queue->buffer[t].entryNum != -1)
 		{
-			TE->entryNum = ENTRYVAL;
-			ENTRYVAL++;
 			TE->t = clock();
 			queue->buffer[t] = *TE;
 			queue->entries++;
@@ -128,12 +141,12 @@ int enqueue(char *TQ_ID, topicEntry *TE)
 	return ret;
 }
 
-int dequeue(char *TQ_ID)
+int dequeue(int id)
 {
 	TQ *queue;
 	int ret = 0;
 
-	if((queue = findQueue(TQ_ID)) != NULL)
+	if((queue = findQueueFromID(id)) != NULL)
 	{
 		pthread_mutex_t mtx = queue->mutex;
 		pthread_mutex_lock(&mtx);
@@ -158,13 +171,15 @@ int dequeue(char *TQ_ID)
 	return ret;
 }
 
-int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE)
+int getEntry(int id, int lastEntry, topicEntry *TE)
 {
 	TQ *queue;
 	int ret = 0;
 
-	if((queue = findQueue(TQ_ID)) != NULL)
+	if((queue = findQueueFromID(id)) != NULL)
 	{
+		pthread_mutex_t mtx = queue->mutex;
+		pthread_mutex_lock(&mtx);
 		int i = queue->head;
 		int entry = queue->buffer[i].entryNum;
 		lastEntry++;
@@ -179,10 +194,27 @@ int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE)
 			i++;
 			entry = queue->buffer[i].entryNum;
 		}
+		pthread_mutex_unlock(&mtx);
 	}
 	return ret;
 }
-
+/*
+TQ *makeTopic(int index, int id, int length, char *name)
+{
+	printf("MAKING TOPIC\n");
+	if(index < MAXTOPICS)
+	{
+		TQ_DEF(tq, id, length);
+		strncpy(tq.topic, name, sizeof(tq.topic) - 1);
+		return &tq;
+	}
+	else
+	{
+		printf("[ERROR] Topic limit already reached.\n");
+		return NULL;
+	}
+}
+*/
 int makeThread(int type, int index, char *filename)
 {
 	int s, res;
@@ -263,68 +295,165 @@ void joinThreads(int numPubs, int numSubs, pthread_t p[], pthread_t s[])
 void *publisher(void *args)
 {
 	int id;
-	char **TQ_LIST;
-	topicEntry *TE_LIST;
+	char *filename;
 	id = ((threadargs *) args)->id;
-
+	filename = ((threadargs *) args)->filename;
 	printf("Publisher: %d\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
 	pthread_mutex_unlock(&meowtx);
-	/*
-	int i = 0;
-	while(TQ_LIST[i] != NULL)
+
+	FILE *fileptr;
+	size_t len = 0;
+
+	fileptr = fopen(filename, "r");
+	if(fileptr == NULL)
 	{
-		topicEntry entry = TE_LIST[i];
-		entry.pubID = id;
-		if(enqueue(TQ_LIST[i], &entry))
+		printf("[ERROR] Publisher failed to open file.\n");
+		PROG_STAT = 1;
+	}
+	while(fileptr != NULL && PROG_STAT == 0)
+	{
+		char *line = NULL;
+		char command[16];
+		getline(&line, &len, fileptr);
+		sscanf(line, "%15s", command);
+
+		if(strcmp(command, "put") == 0)
 		{
-			printf("P:%d Enq - %s to %s\n", id, entry.photoCaption, TQ_LIST[i]);
-			i++;
-			sched_yield();
-			sleep(1);
+			int topicID;
+			char url[255];
+			char capt[255];
+			sscanf(line,"put %d \"%254[^\"]\" \"%254[^\"]\"",&topicID,url,capt);
+			if(topicID <= 0 || strcmp(url, "") == 0 || strcmp(capt, "") == 0)
+			{
+				printf("[ERROR] Invalid arguments for put command.\n");
+				PROG_STAT = 1;
+			}
+			else
+			{
+				TE_DEF(entry, ENTRYVAL, id);
+				ENTRYVAL++;
+				strncpy(entry.photoURL, url, sizeof(entry.photoURL) - 1);
+				strncpy(entry.photoCaption, capt, sizeof(entry.photoCaption)-1);
+				if(enqueue(topicID, &entry))
+				{
+					printf("P:%d Enqueued: %s\n", id, entry.photoCaption);
+				}
+				else
+				{
+					printf("[ERROR] P:%D Enqueue failed: %s\n", id, capt);
+				}
+			}
+		}
+		else if(strcmp(command, "sleep") == 0)
+		{
+			int time;
+			sscanf(line, "sleep %d", &time);
+			if(time >= 0)
+			{
+				usleep(time);
+			}
+			else
+			{
+				printf("[ERROR] Invalid time for sleep command: %d\n", time);
+				PROG_STAT = 1;
+			}
+		}
+		else if(strcmp(command, "stop") == 0)
+		{
+			printf("Stopping publisher thread %d\n", id);
+			free(line);
+			break;
 		}
 		else
 		{
-			sched_yield();
+			/* Print Error */
+			char command[32];
+			sscanf(line, "%s", command);
+			printf("[ERROR] Unrecognized Command: %s\n", command);
+			PROG_STAT = 1;
 		}
+		free(line);
+		sched_yield();
 	}
-	*/
+	fclose(fileptr);
 	return NULL;
 }
 
 void *subscriber(void *args)
 {
-	int id, lastEntry, res;
-	topicEntry *entry;
-	char *TQ_ID;
-
+	int id;
+	char *filename;
 	id = ((threadargs *) args)->id;
-	lastEntry = 0;
-
+	filename = ((threadargs *) args)->filename;
 	printf("Subscriber: %d\n", id);
 
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
 	pthread_mutex_unlock(&meowtx);
-	/*
-	while(globalFlag)
+
+	FILE *fileptr;
+	size_t len = 0;
+	fileptr = fopen(filename, "r");
+	if(fileptr == NULL)
 	{
-		if((res = getEntry(TQ_ID, lastEntry, entry)) > 0)
+		printf("[ERROR] Subscriber failed to open file.\n");
+		PROG_STAT = 1;
+	}
+	while(fileptr != NULL && PROG_STAT == 0)
+	{
+		char *line = NULL;
+		char command[16];
+		getline(&line, &len, fileptr);
+		sscanf(line, "%15s", command);
+
+		if(strcmp(command, "get") == 0)
 		{
-			lastEntry = (res == 1) ? lastEntry+1 : res;
-			printf("S:%d got entry: %d\n", id, entry->entryNum);
-			sched_yield();
+			int topicQueueID;
+			sscanf(line, "get %d", &topicQueueID);
+			int res;
+			int lastEntry = 0;
+			topicEntry *entry = NULL;
+			while((res = getEntry(topicQueueID, lastEntry, entry)) > 0)
+			{
+				lastEntry = (res == 1) ? lastEntry+1 : res;
+				printf("S:%d got entry: %d\n", id, entry->entryNum);
+			}
+		}
+		else if(strcmp(command, "sleep") == 0)
+		{
+			int time;
+			sscanf(line, "sleep %d", &time);
+			if(time >= 0)
+			{
+				usleep(time);
+			}
+			else
+			{
+				printf("[ERROR] Invalid time for sleep command: %d\n", time);
+				PROG_STAT = 1;
+			}
+		}
+		else if(strcmp(command, "stop") == 0)
+		{
+			printf("Stopping subscriber thread %d\n", id);
+			free(line);
+			break;
 		}
 		else
 		{
-			printf("S:%d could not get entry\n", id);
-			sched_yield();
-			sleep(1);
+			/* Print Error */
+			char command[32];
+			sscanf(line, "%s", command);
+			printf("[ERROR] Unrecognized Command: %s\n", command);
+			PROG_STAT = 1;
 		}
+		free(line);
+		sched_yield();
 	}
-	*/
+	fclose(fileptr);
 	return NULL;
 }
 
@@ -335,22 +464,21 @@ void *cleanup()
 	pthread_mutex_lock(&meowtx);
 	pthread_cond_wait(&cond_meowtx, &meowtx);
 	pthread_mutex_unlock(&meowtx);
-	/*
+
 	while(globalFlag)
 	{
 		if(cleanFlag)
 		{
-			for(int i = 0; i < MAXTOPICS; i++)
+			for(int i = 0; i < NUMTOPICS; i++)
 			{
-				char *TQ_ID = registry[i]->topic;
-				printf("Cleanup: %s\n", TQ_ID);
-				dequeue(TQ_ID);
+				int id = registry[i].id;
+				printf("Cleanup: %d\n", id);
+				dequeue(id);
 			}
 			cleanFlag = 0;
 		}
 		sched_yield();
 	}
-	*/
 	return NULL;
 }
 
@@ -363,12 +491,10 @@ void alarmHandler(int signal)
 
 int main(int argc, char *argv[])
 {
-	int i;
 	FILE *fileptr;
 	size_t len = 0;
 	int numPubs = 0;
 	int numSubs = 0;
-	int numTopics = 0;
 
 	if(checkArgv(argv))
 	{
@@ -396,7 +522,7 @@ int main(int argc, char *argv[])
 		if(strcmp(command, "create") == 0)
 		{
 			int id = 0;
-			int len = 0;
+			int len;
 			char name[128] = "";
 			sscanf(line, "create topic %d \"%127[^\"]\" %d", &id, name, &len);
 			if(id <= 0 || len <= 0 || strcmp(name, "") == 0)
@@ -406,12 +532,11 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				/*
 				TQ_DEF(tq, id, len);
-				strncpy(tq.topic, name, sizeof(tq.topic) - 1);
-				registry[numTopics] = tq;
-				numTopics++;
-				*/
+				tq.buffer = malloc(sizeof(topicEntry) * len+1);
+				tq.buffer[len].entryNum = -1;
+				registry[NUMTOPICS] = tq;
+				NUMTOPICS++;
 			}
 		}
 		else if(strcmp(command, "query") == 0)
@@ -437,10 +562,10 @@ int main(int argc, char *argv[])
 			}
 			else if(strcmp(var, "topics") == 0)
 			{
-				for(i = 0; i < numTopics; i++)
+				for(i = 0; i < NUMTOPICS; i++)
 				{
-					TQ *tq = registry[i];
-					printf("Topic: %d Length: %d\n", tq->id, tq->length);
+					TQ tq = registry[i];
+					printf("Topic: %d Length: %d\n", tq.id, tq.length);
 				}
 			}
 			else
@@ -508,6 +633,7 @@ int main(int argc, char *argv[])
 			pthread_mutex_lock(&meowtx);
 			pthread_cond_broadcast(&cond_meowtx);
 			pthread_mutex_unlock(&meowtx);
+			free(line);
 			break;
 		}
 		else
@@ -526,6 +652,11 @@ int main(int argc, char *argv[])
 	{
 		joinThreads(numPubs, numSubs, pubs, subs);
 		globalFlag = 0;
+	}
+
+	for(int i = 0; i < NUMTOPICS; i++)
+	{
+		free(registry[i].buffer);
 	}
 
 	return PROG_STAT;

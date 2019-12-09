@@ -31,8 +31,8 @@ topicEntry;
 typedef struct{
 	char topic[MAXNAME];
 	int id, head, tail, entries;
-	const int length;
-	topicEntry * const buffer;
+	int length;
+	topicEntry * buffer;
 	pthread_mutex_t mutex;
 }
 TQ;
@@ -46,25 +46,32 @@ threadargs;
 /******************************************************************************/
 
 /******************************* Macros ***************************************/
+#define TQ_BLANK(var)                                                    \
+	TQ var = {                                                           \
+		.id = 0,                                                         \
+		.head = 0,                                                       \
+		.tail = 0,                                                       \
+		.entries = 0,                                                    \
+		.length = 0,                                                     \
+		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
+	}
+
 #define TQ_DEF(var, id, len)                                             \
-	topicEntry var##_buf[MAXENTRIES + 1] = {[MAXENTRIES].entryNum = -1}; \
 	TQ var = {                                                           \
 		.id = id,                                                        \
 		.head = 0,                                                       \
 		.tail = 0,                                                       \
 		.entries = 0,                                                    \
 		.length = len,                                                   \
-		.buffer = var##_buf,                                             \
 		.mutex = PTHREAD_MUTEX_INITIALIZER                               \
 	}
 
-#define TE_DEF(var, photo_url, photo_caption)                            \
+#define TE_DEF(var, ENTRYVAL, id)                                        \
 	topicEntry var = {                                                   \
-		.entryNum = 0,                                                   \
-		.pubID = 0,                                                      \
-		.photoURL = photo_url,                                           \
-		.photoCaption = photo_caption                                    \
+		.entryNum = ENTRYVAL,                                            \
+		.pubID = id,                                                     \
 	}
+
 /******************************************************************************/
 
 /************************** Function Definitions ******************************/
@@ -73,11 +80,11 @@ void exitStat(void);
 
 TQ *findQueue(char *TQ_ID);
 
-int enqueue(char *TQ_ID, topicEntry *TE);
+int enqueue(int id, topicEntry *TE);
 
-int dequeue(char *TQ_ID);
+int dequeue(int id);
 
-int getEntry(char *TQ_ID, int lastEntry, topicEntry *TE);
+int getEntry(int id, int lastEntry, topicEntry *TE);
 
 void *publisher(void *args);
 
